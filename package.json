@@ -1,0 +1,48 @@
+{
+  "name": "fireborm",
+  "version": "0.0.0",
+  "description": "A Firebase ORM-like wrapper, inspired by packages like sequelize and mongoose",
+  "type": "module",
+  "source": "src/index.ts",
+  "module": "dist/index.js",
+  "main": "dist/index.cjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "scripts": {
+    "build": "vite build"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "^npm@10.8.1",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rgdevme/fireborm.git"
+  },
+  "keywords": [
+    "firebase",
+    "admin",
+    "functions",
+    "orm"
+  ],
+  "author": "Rafael González",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/rgdevme/fireborm/issues"
+  },
+  "homepage": "https://github.com/rgdevme/fireborm#readme",
+  "devDependencies": {
+    "typescript": "^5.2.2",
+    "vite": "^4.4.9",
+    "vite-plugin-dts": "^3.6.0"
+  },
+  "peerDependencies": {
+    "firebase": "^10.5.0"
+  }
+}
