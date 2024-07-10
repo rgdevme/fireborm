@@ -34,9 +34,9 @@ export const FireBorm = ({
       storage.init(fbstorage)
       return storage
     },
-    initializeFirestore: <T extends FirebormCalls>(functionNames: (keyof T)[]) => {
+    initializeCallables: <T extends FirebormCalls>(functionNames: (keyof T)[]) => {
       if (!functions) throw new Error("Functions hasn't been provided")
-      const callables = new FirebormCallables(functions, functionNames)
+      const callables = new FirebormCallables<T>(functions, functionNames)
       return callables.callables
     }
   }

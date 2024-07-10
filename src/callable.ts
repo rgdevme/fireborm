@@ -1,9 +1,14 @@
 import { Functions, HttpsCallable, httpsCallable } from 'firebase/functions'
 
-export type FirebormCalls = Record<string, HttpsCallable<unknown, CallableResponse>>
+export type FirebormCalls<
+  Params = any,
+  Response = any
+> = Record<string, HttpsCallable<Params, CallableResponse<Response>>>
 
-export type CallableResponse<T = unknown> = Promise<{
-  data?: T, error?: string[], code?: string
+export type CallableResponse<T> = Promise<{
+  data?: T,
+  error?: string[],
+  code?: string
 }>
 
 export class FirebormCallables<T extends FirebormCalls> {
@@ -18,3 +23,4 @@ export class FirebormCallables<T extends FirebormCalls> {
     })
   }
 }
+
