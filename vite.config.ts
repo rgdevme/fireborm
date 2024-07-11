@@ -1,14 +1,14 @@
 import { defineConfig } from 'vite'
 import dts from 'vite-plugin-dts'
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   root: './',
   build: {
-    watch: {
+    watch: command === 'serve' ? {
       buildDelay: 2000,
       clearScreen: true,
       include: 'src/**',
-    },
+    } : undefined,
     lib: {
       entry: './src/index.ts',
       name: 'index',
@@ -29,4 +29,4 @@ export default defineConfig({
       insertTypesEntry: true,
     }),
   ],
-})
+}))
