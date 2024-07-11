@@ -11,6 +11,6 @@ getPublishedVersion('fireborm')
       published: { type: typeof published, v: published },
 
     })
-    if (version === published) npmBump('minor')
+    if (version === published) npmBump('patch')
   })
 // npmBump(releaseType)
