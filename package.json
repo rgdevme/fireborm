@@ -40,6 +40,7 @@
   },
   "homepage": "https://github.com/rgdevme/fireborm#readme",
   "devDependencies": {
+    "bumpp": "^9.4.1",
     "get-published-version": "^1.0.6",
     "npm-bump": "^0.0.33",
     "typescript": "^5.2.2",
