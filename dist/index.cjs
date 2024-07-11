@@ -33,13 +33,33 @@ const functions = require("firebase/functions");
 const storage = require("firebase/storage");
 const firestore = require("firebase/firestore");
 class FirebormCallables {
-  constructor(functions$1, functionsNames) {
+  constructor(functions$1, functionsNames, options) {
     __publicField(this, "callables", {});
     functionsNames.forEach((name) => {
-      this.callables[name] = functions.httpsCallable(
-        functions$1,
-        name
-      );
+      this.callables[name] = async (params) => {
+        try {
+          const { data } = await functions.httpsCallable(
+            functions$1,
+            name
+          )(params);
+          return data;
+        } catch (e) {
+          const err = e;
+          if (options == null ? void 0 : options.onError)
+            options.onError(err);
+          else
+            console.error({
+              cause: err.cause,
+              code: err.code,
+              customData: err.customData,
+              details: err.details,
+              message: err.message,
+              name: err.name,
+              stack: err.stack
+            });
+          return err;
+        }
+      };
     });
   }
 }

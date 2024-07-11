@@ -5,7 +5,6 @@ import { FieldPath } from 'firebase/firestore';
 import { FirebaseStorage } from 'firebase/storage';
 import { Firestore } from 'firebase/firestore';
 import { Functions } from 'firebase/functions';
-import { HttpsCallable } from 'firebase/functions';
 import { ListResult } from '@firebase/storage';
 import { OrderByDirection } from 'firebase/firestore';
 import { QueryConstraint } from 'firebase/firestore';
@@ -26,11 +25,7 @@ export declare const FireBorm: ({ firestore, storage: fbstorage, functions }: {
     initializeCallables: <T extends FirebormCalls>(functionNames: (keyof T)[]) => T;
 };
 
-export declare type FirebormCall<P, R> = HttpsCallable<P, {
-    data?: R;
-    error?: string[];
-    code?: string;
-}>;
+export declare type FirebormCall<P, R> = (params: P) => Promise<R>;
 
 declare type FirebormCalls<P = any, R = any> = Record<string, FirebormCall<P, R>>;
 

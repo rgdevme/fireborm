@@ -31,13 +31,33 @@ import { httpsCallable } from "firebase/functions";
 import { ref, uploadBytes, getDownloadURL, deleteObject, listAll } from "firebase/storage";
 import { collection, doc, getDoc, where, orderBy, startAt, query, getDocs, getCountFromServer, setDoc, updateDoc, arrayUnion, arrayRemove, addDoc, deleteDoc, onSnapshot } from "firebase/firestore";
 class FirebormCallables {
-  constructor(functions, functionsNames) {
+  constructor(functions, functionsNames, options) {
     __publicField(this, "callables", {});
     functionsNames.forEach((name) => {
-      this.callables[name] = httpsCallable(
-        functions,
-        name
-      );
+      this.callables[name] = async (params) => {
+        try {
+          const { data } = await httpsCallable(
+            functions,
+            name
+          )(params);
+          return data;
+        } catch (e) {
+          const err = e;
+          if (options == null ? void 0 : options.onError)
+            options.onError(err);
+          else
+            console.error({
+              cause: err.cause,
+              code: err.code,
+              customData: err.customData,
+              details: err.details,
+              message: err.message,
+              name: err.name,
+              stack: err.stack
+            });
+          return err;
+        }
+      };
     });
   }
 }
