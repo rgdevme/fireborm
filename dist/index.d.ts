@@ -16,12 +16,6 @@ import { UpdateData } from 'firebase/firestore';
 import { WhereFilterOp } from 'firebase/firestore';
 import { WithFieldValue } from 'firebase/firestore';
 
-declare type CallableResponse<T> = {
-    data?: T;
-    error?: string[];
-    code?: string;
-};
-
 export declare const FireBorm: ({ firestore, storage: fbstorage, functions }: {
     firestore: Firestore;
     storage: FirebaseStorage;
@@ -32,7 +26,13 @@ export declare const FireBorm: ({ firestore, storage: fbstorage, functions }: {
     initializeCallables: <T extends FirebormCalls>(functionNames: (keyof T)[]) => T;
 };
 
-declare type FirebormCalls<Params = any, Response = any> = Record<string, HttpsCallable<Params, CallableResponse<Response>>>;
+export declare type FirebormCall<P, R> = HttpsCallable<P, {
+    data?: R;
+    error?: string[];
+    code?: string;
+}>;
+
+declare type FirebormCalls<P = any, R = any> = Record<string, FirebormCall<P, R>>;
 
 declare class FirebormStorage {
     #private;
