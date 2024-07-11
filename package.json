@@ -17,7 +17,9 @@
   "scripts": {
     "serve": "vite serve",
     "build": "vite build",
-    "postbuild": "git add -A && git commit -m \"chore: update dist\""
+    "postbuild": "git add -A && git commit -m \"chore: update dist\"",
+    "prebump": "npm run build",
+    "bump": "npx bumpp"
   },
   "engines": {
     "node": ">=20"

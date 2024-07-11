@@ -1,3 +1,3 @@
-import { defineConfig } from 'bumpp'
+import { defineConfig, } from 'bumpp'
 
-export default defineConfig({ execute: 'npm run build' })
+export default defineConfig({})
