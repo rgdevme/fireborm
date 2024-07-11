@@ -5,6 +5,8 @@ import { FirebormCallables, FirebormCalls } from './callable'
 import { FirebormStorage } from './storage'
 import { FirebormStore } from './store'
 
+export type { FirebormCall } from './callable'
+
 export const FireBorm = ({
   firestore,
   storage: fbstorage,

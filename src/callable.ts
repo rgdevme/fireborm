@@ -1,15 +1,12 @@
 import { Functions, HttpsCallable, httpsCallable } from 'firebase/functions'
 
-export type FirebormCalls<
-  Params = any,
-  Response = any
-> = Record<string, HttpsCallable<Params, CallableResponse<Response>>>
+export type FirebormCall<P, R> = HttpsCallable<
+  P,
+  { data?: R, error?: string[], code?: string }
+>
 
-export type CallableResponse<T> = {
-  data?: T,
-  error?: string[],
-  code?: string
-}
+export type FirebormCalls<P = any, R = any> = Record<string, FirebormCall<P, R>>
+
 
 export class FirebormCallables<T extends FirebormCalls> {
   readonly callables = {} as T
