@@ -5,11 +5,11 @@ export type FirebormCalls<
   Response = any
 > = Record<string, HttpsCallable<Params, CallableResponse<Response>>>
 
-export type CallableResponse<T> = Promise<{
+export type CallableResponse<T> = {
   data?: T,
   error?: string[],
   code?: string
-}>
+}
 
 export class FirebormCallables<T extends FirebormCalls> {
   readonly callables = {} as T
