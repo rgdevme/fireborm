@@ -16,7 +16,8 @@
   },
   "scripts": {
     "serve": "vite serve",
-    "build": "vite build"
+    "build": "vite build",
+    "postbuild": "git add -A && git commit -m \"chore: update dist\""
   },
   "engines": {
     "node": ">=20"
