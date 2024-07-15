@@ -93,7 +93,7 @@ declare class FirebormStore<DocType extends DocumentData, ModelType extends obje
 }
 
 declare type KeysMatching<T extends object, V> = {
-    [K in keyof T]-?: T[K] extends V ? K : never;
+    [K in keyof T]-?: Required<T>[K] extends V ? K : never;
 }[keyof T];
 
 declare type Where<T> = [
