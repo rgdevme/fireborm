@@ -57,7 +57,7 @@ export class FirebormStore<
   readonly plural: string
   readonly singular: string
   readonly defaultData: DefaultType
-  readonly deleteOnNull: (keyof DocType)[] = []
+  readonly deleteOnUndefined: (keyof DocType)[] = []
   #ref?: CollectionReference<ModelType, DocType>
 
   public init = (firestore: Firestore) => {
@@ -78,7 +78,7 @@ export class FirebormStore<
     plural,
     singular,
     defaultData,
-    deleteOnNull,
+    deleteOnUndefined,
     toDocument,
     toModel,
     onError,
@@ -87,7 +87,7 @@ export class FirebormStore<
     plural: string
     singular: string
     defaultData: DefaultType
-    deleteOnNull?: (keyof PickOptionals<DocType>)[],
+    deleteOnUndefined?: (keyof PickOptionals<DocType>)[],
     onError?: (error: Error) => void
     toModel?: (document: QueryDocumentSnapshot<DocType, DocType>) => ModelType
     toDocument?: (model: ModelType) => DocType
@@ -96,7 +96,7 @@ export class FirebormStore<
     this.plural = plural
     this.singular = singular
     this.defaultData = defaultData
-    if (deleteOnNull) this.deleteOnNull = deleteOnNull
+    if (deleteOnUndefined) this.deleteOnUndefined = deleteOnUndefined
     if (onError) this.onError = onError
     if (toModel) this.toModel = toModel
     if (toDocument) this.toDocument = toDocument
@@ -169,9 +169,10 @@ export class FirebormStore<
 
     for (const key in data) {
       const value = data[key]
-      if (this.deleteOnNull.includes(key) && value === null) {
-        upd[key as keyof typeof data] =
-          deleteField() as (typeof data)[keyof typeof data]
+      const isDeletable = this.deleteOnUndefined.includes(key)
+      const isUndefined = value === undefined
+      if (isDeletable && isUndefined) {
+        upd[key as string] = deleteField()
       } else {
         upd[key] = value
       }
