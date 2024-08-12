@@ -9,11 +9,17 @@ import { ListResult } from '@firebase/storage';
 import { OrderByDirection } from 'firebase/firestore';
 import { QueryConstraint } from 'firebase/firestore';
 import { QueryDocumentSnapshot } from 'firebase/firestore';
+import { QueryDocumentSnapshot as QueryDocumentSnapshot_2 } from '@firebase/firestore';
 import { StorageReference } from 'firebase/storage';
 import { Unsubscribe } from '@firebase/firestore';
 import { UpdateData } from 'firebase/firestore';
 import { WhereFilterOp } from 'firebase/firestore';
 import { WithFieldValue } from 'firebase/firestore';
+
+declare type ConvertedModel<D extends DocumentData, M extends D | DocumentData> = M & {
+    id: string;
+    _ref: DocumentReference<M, D>;
+};
 
 export declare const FireBorm: ({ firestore, storage: fbstorage, functions }: {
     firestore: Firestore;
@@ -53,7 +59,7 @@ declare class FirebormStore<DocType extends DocumentData, ModelType extends obje
     readonly defaultData: DefaultType;
     readonly deleteOnUndefined: (keyof DocType)[];
     init: (firestore: Firestore) => void;
-    get ref(): CollectionReference<ModelType, DocType>;
+    get ref(): CollectionReference<ConvertedModel<DocType, ModelType>, DocType>;
     constructor({ path, plural, singular, defaultData, deleteOnUndefined, toDocument, toModel, onError, }: {
         path: string;
         plural: string;
@@ -61,19 +67,19 @@ declare class FirebormStore<DocType extends DocumentData, ModelType extends obje
         defaultData: DefaultType;
         deleteOnUndefined?: (keyof PickOptionals<DocType>)[];
         onError?: (error: Error) => void;
-        toModel?: (document: QueryDocumentSnapshot<DocType, DocType>) => ModelType;
-        toDocument?: (model: ModelType) => DocType;
+        toModel?: FSConverter<DocType, ModelType>['fromFirestore'];
+        toDocument?: FSConverter<DocType, ModelType>['toFirestore'];
     });
     onError: (error: Error) => void;
-    docRef: (id?: string) => DocumentReference<ModelType, DocType>;
-    find: (id: string) => Promise<ModelType | undefined>;
+    docRef: (id?: string) => DocumentReference<ConvertedModel<DocType, ModelType>, DocType>;
+    find: (id: string) => Promise<ConvertedModel<DocType, ModelType> | undefined>;
     query: ({ where: wc, offset, limit, order, direction, }: {
         where: Where<DocType>;
         offset?: number;
         order?: keyof DocType;
         direction?: OrderByDirection;
         limit?: number;
-    }) => Promise<ModelType[]>;
+    }) => Promise<ConvertedModel<DocType, ModelType>[]>;
     count: (...where: QueryConstraint[]) => Promise<number>;
     exists: (id: string) => Promise<boolean>;
     save: (id: string, data: UpdateData<ModelType>) => Promise<void>;
@@ -84,15 +90,20 @@ declare class FirebormStore<DocType extends DocumentData, ModelType extends obje
     }>) => Promise<DocumentReference<ModelType, DocType>>;
     destroy: (id: string) => Promise<void>;
     subscribe: (id: string, { onChange }: {
-        onChange: (data?: ModelType) => any;
+        onChange: (data?: ConvertedModel<DocType, ModelType>) => any;
     }) => Unsubscribe;
     subscribeMany: ({ onChange, where, }: {
-        onChange: (data: ModelType[]) => any;
+        onChange: (data: ConvertedModel<DocType, ModelType>[]) => any;
         where: QueryConstraint[];
     }) => Unsubscribe;
-    toModel: (model: QueryDocumentSnapshot<DocType, DocType>) => ModelType;
+    toModel: (doc: QueryDocumentSnapshot_2<DocType, DocType>) => ModelType;
     toDocument: (model: ModelType) => DocType;
 }
+
+declare type FSConverter<D extends DocumentData, M extends D | DocumentData> = {
+    toFirestore: (model: M) => D;
+    fromFirestore: (doc: QueryDocumentSnapshot<D, D>) => M;
+};
 
 /** Return keys that match type */
 declare type PickByType<T extends Record<string, any>, V> = {

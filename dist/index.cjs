@@ -96,6 +96,10 @@ class FirebormStorage {
   }
 }
 _ref = new WeakMap();
+const defaultConverter = () => ({
+  toFirestore: (model) => model,
+  fromFirestore: (doc) => doc.data()
+});
 class FirebormStore {
   constructor({
     path,
@@ -118,8 +122,12 @@ class FirebormStore {
       if (__privateGet(this, _ref2))
         throw new Error("Store has been initialized already");
       __privateSet(this, _ref2, firestore.collection(firestore$1, this.path).withConverter({
-        fromFirestore: this.toModel,
-        toFirestore: this.toDocument
+        fromFirestore: (doc2) => ({
+          id: doc2.id,
+          _ref: doc2.ref,
+          ...this.toModel(doc2)
+        }),
+        toFirestore: ({ id, _ref: _ref3, ...model }) => this.toDocument(model)
       }));
     });
     __publicField(this, "onError", console.error);
@@ -182,11 +190,7 @@ class FirebormStore {
           upd[key] = value;
         }
       }
-      return __privateMethod(this, _wrap, wrap_fn).call(this, firestore.setDoc(
-        this.docRef(id),
-        upd,
-        { merge: true }
-      ));
+      return __privateMethod(this, _wrap, wrap_fn).call(this, firestore.setDoc(this.docRef(id), upd, { merge: true }));
     });
     __publicField(this, "relate", async (id, ref, property) => {
       return __privateMethod(this, _wrap, wrap_fn).call(this, firestore.updateDoc(this.docRef(id), {
@@ -219,12 +223,8 @@ class FirebormStore {
       firestore.query(this.ref, ...where2),
       (d) => onChange(d.docs.map((x) => x.data()))
     ));
-    __publicField(this, "toModel", (document) => {
-      return document;
-    });
-    __publicField(this, "toDocument", (model) => {
-      return model;
-    });
+    __publicField(this, "toModel", defaultConverter().fromFirestore);
+    __publicField(this, "toDocument", defaultConverter().toFirestore);
     this.path = path;
     this.plural = plural;
     this.singular = singular;
