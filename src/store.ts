@@ -87,7 +87,7 @@ export class FirebormStore<
     plural: string
     singular: string
     defaultData: DefaultType
-    deleteOnNull: (keyof PickOptionals<DocType>)[],
+    deleteOnNull?: (keyof PickOptionals<DocType>)[],
     onError?: (error: Error) => void
     toModel?: (document: QueryDocumentSnapshot<DocType, DocType>) => ModelType
     toDocument?: (model: ModelType) => DocType
@@ -96,7 +96,7 @@ export class FirebormStore<
     this.plural = plural
     this.singular = singular
     this.defaultData = defaultData
-    this.deleteOnNull = deleteOnNull
+    if (deleteOnNull) this.deleteOnNull = deleteOnNull
     if (onError) this.onError = onError
     if (toModel) this.toModel = toModel
     if (toDocument) this.toDocument = toDocument
