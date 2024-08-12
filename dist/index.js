@@ -100,7 +100,7 @@ class FirebormStore {
     plural,
     singular,
     defaultData,
-    deleteOnNull,
+    deleteOnUndefined,
     toDocument,
     toModel,
     onError
@@ -110,7 +110,7 @@ class FirebormStore {
     __publicField(this, "plural");
     __publicField(this, "singular");
     __publicField(this, "defaultData");
-    __publicField(this, "deleteOnNull", []);
+    __publicField(this, "deleteOnUndefined", []);
     __privateAdd(this, _ref2, void 0);
     __publicField(this, "init", (firestore) => {
       if (__privateGet(this, _ref2))
@@ -172,7 +172,9 @@ class FirebormStore {
       const upd = {};
       for (const key in data) {
         const value = data[key];
-        if (this.deleteOnNull.includes(key) && value === null) {
+        const isDeletable = this.deleteOnUndefined.includes(key);
+        const isUndefined = value === void 0;
+        if (isDeletable && isUndefined) {
           upd[key] = deleteField();
         } else {
           upd[key] = value;
@@ -225,7 +227,8 @@ class FirebormStore {
     this.plural = plural;
     this.singular = singular;
     this.defaultData = defaultData;
-    this.deleteOnNull = deleteOnNull;
+    if (deleteOnUndefined)
+      this.deleteOnUndefined = deleteOnUndefined;
     if (onError)
       this.onError = onError;
     if (toModel)

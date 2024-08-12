@@ -51,15 +51,15 @@ declare class FirebormStore<DocType extends DocumentData, ModelType extends obje
     readonly plural: string;
     readonly singular: string;
     readonly defaultData: DefaultType;
-    readonly deleteOnNull: (keyof DocType)[];
+    readonly deleteOnUndefined: (keyof DocType)[];
     init: (firestore: Firestore) => void;
     get ref(): CollectionReference<ModelType, DocType>;
-    constructor({ path, plural, singular, defaultData, deleteOnNull, toDocument, toModel, onError, }: {
+    constructor({ path, plural, singular, defaultData, deleteOnUndefined, toDocument, toModel, onError, }: {
         path: string;
         plural: string;
         singular: string;
         defaultData: DefaultType;
-        deleteOnNull: (keyof PickOptionals<DocType>)[];
+        deleteOnUndefined?: (keyof PickOptionals<DocType>)[];
         onError?: (error: Error) => void;
         toModel?: (document: QueryDocumentSnapshot<DocType, DocType>) => ModelType;
         toDocument?: (model: ModelType) => DocType;
