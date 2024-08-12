@@ -15,6 +15,7 @@ import {
   arrayUnion,
   collection,
   deleteDoc,
+  deleteField,
   doc,
   getCountFromServer,
   getDoc,
@@ -27,7 +28,7 @@ import {
   updateDoc,
   where,
 } from 'firebase/firestore'
-import { KeysMatching } from './utilities'
+import { KeysMatching, OnlyOptional } from './utilities'
 type Where<T> = [
   keyof T extends string ? keyof T | FieldPath : FieldPath,
   WhereFilterOp,
@@ -39,11 +40,11 @@ export type FSConverter<Ref> = Ref extends DocumentReference<
   infer Document
 >
   ? {
-      toFirestore: (model: Model) => Document
-      fromFirestore: (
-        document: QueryDocumentSnapshot<Document, Document>
-      ) => Model
-    }
+    toFirestore: (model: Model) => Document
+    fromFirestore: (
+      document: QueryDocumentSnapshot<Document, Document>
+    ) => Model
+  }
   : never
 
 export class FirebormStore<
@@ -56,6 +57,7 @@ export class FirebormStore<
   readonly plural: string
   readonly singular: string
   readonly defaultData: DefaultType
+  readonly deleteOnNull: (keyof OnlyOptional<DocumentType>)[] = []
   #ref?: CollectionReference<ModelType, DocType>
 
   public init = (firestore: Firestore) => {
@@ -76,6 +78,7 @@ export class FirebormStore<
     plural,
     singular,
     defaultData,
+    deleteOnNull,
     toDocument,
     toModel,
     onError,
@@ -84,6 +87,7 @@ export class FirebormStore<
     plural: string
     singular: string
     defaultData: DefaultType
+    deleteOnNull: (OnlyOptional<DocType>)[],
     onError?: (error: Error) => void
     toModel?: (document: QueryDocumentSnapshot<DocType, DocType>) => ModelType
     toDocument?: (model: ModelType) => DocType
@@ -92,6 +96,7 @@ export class FirebormStore<
     this.plural = plural
     this.singular = singular
     this.defaultData = defaultData
+    this.deleteOnNull = deleteOnNull
     if (onError) this.onError = onError
     if (toModel) this.toModel = toModel
     if (toDocument) this.toDocument = toDocument
@@ -160,8 +165,24 @@ export class FirebormStore<
   }
 
   public save = async (id: string, data: UpdateData<ModelType>) => {
+    const upd = {} as typeof data
+
+    for (const key in data) {
+      const value = data[key]
+      if (this.deleteOnNull.includes(key) && value === null) {
+        upd[key as keyof typeof data] =
+          deleteField() as (typeof data)[keyof typeof data]
+      } else {
+        upd[key] = value
+      }
+    }
+
     return this.#wrap(
-      setDoc<ModelType, DocType>(this.docRef(id), data, { merge: true })
+      setDoc<ModelType, DocType>(
+        this.docRef(id),
+        upd,
+        { merge: true }
+      )
     )
   }
 
