@@ -29,7 +29,7 @@ var __privateMethod = (obj, member, method) => {
 var _ref, _ref2, _wrap, wrap_fn;
 import { httpsCallable } from "firebase/functions";
 import { ref, uploadBytes, getDownloadURL, deleteObject, listAll } from "firebase/storage";
-import { collection, doc, getDoc, where, orderBy, startAt, query, getDocs, getCountFromServer, setDoc, updateDoc, arrayUnion, arrayRemove, addDoc, deleteDoc, onSnapshot } from "firebase/firestore";
+import { collection, doc, getDoc, where, orderBy, startAt, query, getDocs, getCountFromServer, deleteField, setDoc, updateDoc, arrayUnion, arrayRemove, addDoc, deleteDoc, onSnapshot } from "firebase/firestore";
 class FirebormCallables {
   constructor(functions, functionsNames, options) {
     __publicField(this, "callables", {});
@@ -100,6 +100,7 @@ class FirebormStore {
     plural,
     singular,
     defaultData,
+    deleteOnNull,
     toDocument,
     toModel,
     onError
@@ -109,6 +110,7 @@ class FirebormStore {
     __publicField(this, "plural");
     __publicField(this, "singular");
     __publicField(this, "defaultData");
+    __publicField(this, "deleteOnNull", []);
     __privateAdd(this, _ref2, void 0);
     __publicField(this, "init", (firestore) => {
       if (__privateGet(this, _ref2))
@@ -167,7 +169,20 @@ class FirebormStore {
       });
     });
     __publicField(this, "save", async (id, data) => {
-      return __privateMethod(this, _wrap, wrap_fn).call(this, setDoc(this.docRef(id), data, { merge: true }));
+      const upd = {};
+      for (const key in data) {
+        const value = data[key];
+        if (this.deleteOnNull.includes(key) && value === null) {
+          upd[key] = deleteField();
+        } else {
+          upd[key] = value;
+        }
+      }
+      return __privateMethod(this, _wrap, wrap_fn).call(this, setDoc(
+        this.docRef(id),
+        upd,
+        { merge: true }
+      ));
     });
     __publicField(this, "relate", async (id, ref2, property) => {
       return __privateMethod(this, _wrap, wrap_fn).call(this, updateDoc(this.docRef(id), {
@@ -210,6 +225,7 @@ class FirebormStore {
     this.plural = plural;
     this.singular = singular;
     this.defaultData = defaultData;
+    this.deleteOnNull = deleteOnNull;
     if (onError)
       this.onError = onError;
     if (toModel)

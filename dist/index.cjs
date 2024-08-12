@@ -102,6 +102,7 @@ class FirebormStore {
     plural,
     singular,
     defaultData,
+    deleteOnNull,
     toDocument,
     toModel,
     onError
@@ -111,6 +112,7 @@ class FirebormStore {
     __publicField(this, "plural");
     __publicField(this, "singular");
     __publicField(this, "defaultData");
+    __publicField(this, "deleteOnNull", []);
     __privateAdd(this, _ref2, void 0);
     __publicField(this, "init", (firestore$1) => {
       if (__privateGet(this, _ref2))
@@ -169,7 +171,20 @@ class FirebormStore {
       });
     });
     __publicField(this, "save", async (id, data) => {
-      return __privateMethod(this, _wrap, wrap_fn).call(this, firestore.setDoc(this.docRef(id), data, { merge: true }));
+      const upd = {};
+      for (const key in data) {
+        const value = data[key];
+        if (this.deleteOnNull.includes(key) && value === null) {
+          upd[key] = firestore.deleteField();
+        } else {
+          upd[key] = value;
+        }
+      }
+      return __privateMethod(this, _wrap, wrap_fn).call(this, firestore.setDoc(
+        this.docRef(id),
+        upd,
+        { merge: true }
+      ));
     });
     __publicField(this, "relate", async (id, ref, property) => {
       return __privateMethod(this, _wrap, wrap_fn).call(this, firestore.updateDoc(this.docRef(id), {
@@ -212,6 +227,7 @@ class FirebormStore {
     this.plural = plural;
     this.singular = singular;
     this.defaultData = defaultData;
+    this.deleteOnNull = deleteOnNull;
     if (onError)
       this.onError = onError;
     if (toModel)

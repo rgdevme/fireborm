@@ -51,13 +51,15 @@ declare class FirebormStore<DocType extends DocumentData, ModelType extends obje
     readonly plural: string;
     readonly singular: string;
     readonly defaultData: DefaultType;
+    readonly deleteOnNull: (keyof DocType)[];
     init: (firestore: Firestore) => void;
     get ref(): CollectionReference<ModelType, DocType>;
-    constructor({ path, plural, singular, defaultData, toDocument, toModel, onError, }: {
+    constructor({ path, plural, singular, defaultData, deleteOnNull, toDocument, toModel, onError, }: {
         path: string;
         plural: string;
         singular: string;
         defaultData: DefaultType;
+        deleteOnNull: (keyof PickOptionals<DocType>)[];
         onError?: (error: Error) => void;
         toModel?: (document: QueryDocumentSnapshot<DocType, DocType>) => ModelType;
         toDocument?: (model: ModelType) => DocType;
@@ -75,8 +77,8 @@ declare class FirebormStore<DocType extends DocumentData, ModelType extends obje
     count: (...where: QueryConstraint[]) => Promise<number>;
     exists: (id: string) => Promise<boolean>;
     save: (id: string, data: UpdateData<ModelType>) => Promise<void>;
-    relate: (id: string, ref: DocumentReference, property: KeysMatching<ModelType, DocumentReference[] | DocumentReference>) => Promise<void>;
-    unrelate: (id: string, ref: DocumentReference, property: KeysMatching<ModelType, DocumentReference[] | DocumentReference>) => Promise<void>;
+    relate: (id: string, ref: DocumentReference, property: keyof PickByType<ModelType, DocumentReference[] | DocumentReference>) => Promise<void>;
+    unrelate: (id: string, ref: DocumentReference, property: keyof PickByType<ModelType, DocumentReference[] | DocumentReference>) => Promise<void>;
     create: (data: WithFieldValue<CreateType & {
         id?: string;
     }>) => Promise<DocumentReference<ModelType, DocType>>;
@@ -92,9 +94,13 @@ declare class FirebormStore<DocType extends DocumentData, ModelType extends obje
     toDocument: (model: ModelType) => DocType;
 }
 
-declare type KeysMatching<T extends object, V> = {
-    [K in keyof T]-?: Required<T>[K] extends V ? K : never;
-}[keyof T];
+/** Return keys that match type */
+declare type PickByType<T extends Record<string, any>, V> = {
+    [K in keyof T as T[K] extends infer U ? (U extends V ? K : never) : never]: T[K];
+};
+
+/** Returns a new type with only the optional keys of the given type */
+declare type PickOptionals<T extends Record<string, any>> = PickByType<T, undefined>;
 
 declare type Where<T> = [
 keyof T extends string ? keyof T | FieldPath : FieldPath,
