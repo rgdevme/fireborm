@@ -43,3 +43,8 @@ export type NullOptionals<T extends Record<string, any>> = {
   ? (U extends undefined ? T[K] | null : T[K])
   : T[K]
 }
+
+export type NullByKey<
+  T extends Record<string, any>,
+  X extends keyof T
+> = { [K in keyof T]: K extends X ? T[K] | null : T[K] }
