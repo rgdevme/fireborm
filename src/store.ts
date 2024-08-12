@@ -28,7 +28,7 @@ import {
   updateDoc,
   where,
 } from 'firebase/firestore'
-import { KeysMatching, OnlyOptional } from './utilities'
+import { PickByType, PickOptionals } from './utilities'
 type Where<T> = [
   keyof T extends string ? keyof T | FieldPath : FieldPath,
   WhereFilterOp,
@@ -57,7 +57,7 @@ export class FirebormStore<
   readonly plural: string
   readonly singular: string
   readonly defaultData: DefaultType
-  readonly deleteOnNull: (keyof OnlyOptional<DocumentType>)[] = []
+  readonly deleteOnNull: (keyof DocType)[] = []
   #ref?: CollectionReference<ModelType, DocType>
 
   public init = (firestore: Firestore) => {
@@ -87,7 +87,7 @@ export class FirebormStore<
     plural: string
     singular: string
     defaultData: DefaultType
-    deleteOnNull: (OnlyOptional<DocType>)[],
+    deleteOnNull: (keyof PickOptionals<DocType>)[],
     onError?: (error: Error) => void
     toModel?: (document: QueryDocumentSnapshot<DocType, DocType>) => ModelType
     toDocument?: (model: ModelType) => DocType
@@ -189,7 +189,7 @@ export class FirebormStore<
   public relate = async (
     id: string,
     ref: DocumentReference,
-    property: KeysMatching<ModelType, DocumentReference[] | DocumentReference>
+    property: keyof PickByType<ModelType, DocumentReference[] | DocumentReference>
   ) => {
     return this.#wrap(
       updateDoc(this.docRef(id), {
@@ -201,7 +201,7 @@ export class FirebormStore<
   public unrelate = async (
     id: string,
     ref: DocumentReference,
-    property: KeysMatching<ModelType, DocumentReference[] | DocumentReference>
+    property: keyof PickByType<ModelType, DocumentReference[] | DocumentReference>
   ) => {
     return this.#wrap(
       updateDoc(this.docRef(id), {
