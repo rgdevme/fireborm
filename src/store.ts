@@ -1,51 +1,40 @@
 import {
-  CollectionReference,
-  DocumentData,
-  DocumentReference,
-  FieldPath,
-  Firestore,
-  OrderByDirection,
-  QueryConstraint,
-  QueryDocumentSnapshot,
-  UpdateData,
-  WhereFilterOp,
-  WithFieldValue,
   addDoc,
   arrayRemove,
   arrayUnion,
   collection,
+  CollectionReference,
   deleteDoc,
   deleteField,
   doc,
+  DocumentData,
+  DocumentReference,
+  FieldPath,
+  Firestore,
   getCountFromServer,
   getDoc,
   getDocs,
   onSnapshot,
   orderBy,
+  OrderByDirection,
   query,
+  QueryConstraint,
   setDoc,
   startAt,
+  UpdateData,
   updateDoc,
   where,
+  WhereFilterOp,
+  WithFieldValue
 } from 'firebase/firestore'
+import { ConvertedModel, defaultConverter, FSConverter } from './converter'
 import { PickByType, PickOptionals } from './utilities'
+
 type Where<T> = [
   keyof T extends string ? keyof T | FieldPath : FieldPath,
   WhereFilterOp,
   unknown
 ][]
-
-export type FSConverter<Ref> = Ref extends DocumentReference<
-  infer Model,
-  infer Document
->
-  ? {
-    toFirestore: (model: Model) => Document
-    fromFirestore: (
-      document: QueryDocumentSnapshot<Document, Document>
-    ) => Model
-  }
-  : never
 
 export class FirebormStore<
   DocType extends DocumentData,
@@ -58,14 +47,18 @@ export class FirebormStore<
   readonly singular: string
   readonly defaultData: DefaultType
   readonly deleteOnUndefined: (keyof DocType)[] = []
-  #ref?: CollectionReference<ModelType, DocType>
+  #ref?: CollectionReference<ConvertedModel<DocType, ModelType>, DocType>
 
   public init = (firestore: Firestore) => {
     if (this.#ref) throw new Error('Store has been initialized already')
     this.#ref = collection(firestore, this.path).withConverter({
-      fromFirestore: this.toModel,
-      toFirestore: this.toDocument,
-    })
+      fromFirestore: doc => ({
+        id: doc.id,
+        _ref: doc.ref,
+        ...this.toModel(doc as any),
+      }),
+      toFirestore: ({ id, _ref, ...model }) => this.toDocument(model as any),
+    }) as CollectionReference<ConvertedModel<DocType, ModelType>, DocType>
   }
 
   get ref() {
@@ -87,10 +80,10 @@ export class FirebormStore<
     plural: string
     singular: string
     defaultData: DefaultType
-    deleteOnUndefined?: (keyof PickOptionals<DocType>)[],
+    deleteOnUndefined?: (keyof PickOptionals<DocType>)[]
     onError?: (error: Error) => void
-    toModel?: (document: QueryDocumentSnapshot<DocType, DocType>) => ModelType
-    toDocument?: (model: ModelType) => DocType
+    toModel?: FSConverter<DocType, ModelType>['fromFirestore']
+    toDocument?: FSConverter<DocType, ModelType>['toFirestore']
   }) {
     this.path = path
     this.plural = plural
@@ -179,18 +172,17 @@ export class FirebormStore<
     }
 
     return this.#wrap(
-      setDoc<ModelType, DocType>(
-        this.docRef(id),
-        upd,
-        { merge: true }
-      )
+      setDoc(this.docRef(id), upd, { merge: true })
     )
   }
 
   public relate = async (
     id: string,
     ref: DocumentReference,
-    property: keyof PickByType<ModelType, DocumentReference[] | DocumentReference>
+    property: keyof PickByType<
+      ModelType,
+      DocumentReference[] | DocumentReference
+    >
   ) => {
     return this.#wrap(
       updateDoc(this.docRef(id), {
@@ -202,7 +194,10 @@ export class FirebormStore<
   public unrelate = async (
     id: string,
     ref: DocumentReference,
-    property: keyof PickByType<ModelType, DocumentReference[] | DocumentReference>
+    property: keyof PickByType<
+      ModelType,
+      DocumentReference[] | DocumentReference
+    >
   ) => {
     return this.#wrap(
       updateDoc(this.docRef(id), {
@@ -227,26 +222,20 @@ export class FirebormStore<
 
   public subscribe = (
     id: string,
-    { onChange }: { onChange: (data?: ModelType) => any }
+    { onChange }: { onChange: (data?: ConvertedModel<DocType, ModelType>) => any }
   ) => onSnapshot(doc(this.ref, id), d => onChange(d.data()))
 
   public subscribeMany = ({
     onChange,
     where,
   }: {
-    onChange: (data: ModelType[]) => any
+    onChange: (data: ConvertedModel<DocType, ModelType>[]) => any
     where: QueryConstraint[]
   }) =>
     onSnapshot(query(this.ref, ...where), d =>
       onChange(d.docs.map(x => x.data()))
     )
 
-  public toModel: (
-    model: QueryDocumentSnapshot<DocType, DocType>
-  ) => ModelType = document => {
-    return document as ModelType
-  }
-  public toDocument: (model: ModelType) => DocType = model => {
-    return model as unknown as DocType
-  }
+  public toModel = defaultConverter<DocType, ModelType>().fromFirestore
+  public toDocument = defaultConverter<DocType, ModelType>().toFirestore
 }
