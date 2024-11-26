@@ -27,7 +27,7 @@ var __privateMethod = (obj, member, method) => {
   __accessCheck(obj, member, "access private method");
   return method;
 };
-var _ref, _ref2, _wrap, wrap_fn;
+var _ref, _ref2, _wrap, wrap_fn, _firestore;
 Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
 const functions = require("firebase/functions");
 const storage = require("firebase/storage");
@@ -122,12 +122,8 @@ class FirebormStore {
       if (__privateGet(this, _ref2))
         throw new Error("Store has been initialized already");
       __privateSet(this, _ref2, firestore.collection(firestore$1, this.path).withConverter({
-        fromFirestore: (doc2) => ({
-          id: doc2.id,
-          _ref: doc2.ref,
-          ...this.toModel(doc2)
-        }),
-        toFirestore: ({ id, _ref: _ref3, ...model }) => this.toDocument(model)
+        fromFirestore: this.toModel,
+        toFirestore: this.toDocument
       }));
     });
     __publicField(this, "onError", console.error);
@@ -147,7 +143,7 @@ class FirebormStore {
     __publicField(this, "query", async ({
       where: wc,
       offset,
-      limit,
+      limit: l,
       order,
       direction = "asc"
     }) => {
@@ -157,8 +153,8 @@ class FirebormStore {
           w.push(firestore.orderBy(order, direction));
         if (offset !== void 0)
           w.push(firestore.startAt(offset));
-        if (limit !== void 0)
-          w.push(firestore.startAt(limit));
+        if (l !== void 0)
+          w.push(firestore.limit(l));
         const q = firestore.query(this.ref, ...w);
         const snapshot = await firestore.getDocs(q);
         const result = snapshot.docs.map((d) => d.data());
@@ -254,6 +250,101 @@ wrap_fn = function(f) {
     throw error;
   }
 };
+class FirebormDataManager {
+  constructor(firestore2) {
+    __privateAdd(this, _firestore, void 0);
+    __publicField(this, "import", async ({
+      files,
+      ignore,
+      relations
+    }) => {
+      const unprocessedRecords = await Promise.all(
+        Object.entries(files).map(([key, data]) => {
+          return data.map((object) => {
+            return {
+              collection: key,
+              ref: firestore.doc(firestore.collection(__privateGet(this, _firestore), key)),
+              object
+            };
+          });
+        })
+      );
+      const records = [];
+      unprocessedRecords.flat().forEach(({ ref, object, collection: collection2 }, i, a) => {
+        var _a;
+        const data = object;
+        (_a = relations == null ? void 0 : relations[collection2]) == null ? void 0 : _a.forEach(({ from, to }) => {
+          const originValue = data[from.property];
+          const originIsArray = Array.isArray(originValue);
+          let update;
+          if (originIsArray) {
+            const newVal = originValue;
+            const targets = a.filter((x) => {
+              const isFromCollection = x.collection === to.collection;
+              let hasValue = false;
+              const targetValue = x.object[to.property];
+              const targetIsArray = Array.isArray(targetValue);
+              if (!targetIsArray) {
+                hasValue = originValue.includes(targetValue.toString());
+              } else {
+                hasValue = originValue.some(
+                  (y) => targetValue.includes(y.toString())
+                );
+              }
+              return isFromCollection && hasValue;
+            });
+            targets.forEach((t) => {
+              const targetValue = t.object[to.property];
+              const targetIsArray = Array.isArray(targetValue);
+              if (!targetIsArray) {
+                const i2 = newVal.indexOf(targetValue.toString());
+                newVal.splice(i2, 1, t.ref);
+              } else {
+                targetValue.forEach((v) => {
+                  const i2 = newVal.indexOf(v.toString());
+                  newVal.splice(i2, 1, t.ref);
+                });
+              }
+            });
+            update = newVal;
+          } else {
+            let newVal = originValue;
+            const target = a.find((x) => {
+              const isFromCollection = x.collection === to.collection;
+              let hasValue = false;
+              const targetValue = x.object[to.property];
+              const targetIsArray = Array.isArray(targetValue);
+              if (!targetIsArray)
+                hasValue = originValue.toString() === targetValue.toString();
+              else
+                hasValue = targetValue.includes(originValue.toString());
+              return isFromCollection && hasValue;
+            });
+            if (!target)
+              return;
+            newVal = target.ref;
+            update = newVal;
+          }
+          data[from.property] = update;
+        });
+        records.push({ ref, data, collection: collection2 });
+      });
+      const batch = firestore.writeBatch(__privateGet(this, _firestore));
+      records.forEach(({ ref, data, collection: collection2 }) => {
+        var _a;
+        for (const key in data) {
+          if ((_a = ignore == null ? void 0 : ignore[collection2]) == null ? void 0 : _a.includes(key)) {
+            delete data[key];
+          }
+        }
+        batch.set(ref, data);
+      });
+      await batch.commit();
+    });
+    __privateSet(this, _firestore, firestore2);
+  }
+}
+_firestore = new WeakMap();
 const FireBorm = ({
   firestore: firestore2,
   storage: fbstorage,
@@ -275,6 +366,9 @@ const FireBorm = ({
         throw new Error("Functions hasn't been provided");
       const callables = new FirebormCallables(functions2, functionNames);
       return callables.callables;
+    },
+    initializeDataManager: () => {
+      return new FirebormDataManager(firestore2);
     }
   };
 };
