@@ -28,7 +28,7 @@ import {
 	WhereFilterOp,
 	WithFieldValue
 } from 'firebase/firestore'
-import { ConvertedModel, defaultConverter, FSConverter } from './converter'
+import { defaultConverter, FSConverter } from './converter'
 import { PickByType, PickOptionals } from './utilities'
 
 type Where<T> = [
@@ -48,18 +48,14 @@ export class FirebormStore<
 	readonly singular: string
 	readonly defaultData: DefaultType
 	readonly deleteOnUndefined: (keyof DocType)[] = []
-	#ref?: CollectionReference<ConvertedModel<DocType, ModelType>, DocType>
+	#ref?: CollectionReference<ModelType, DocType>
 
 	public init = (firestore: Firestore) => {
 		if (this.#ref) throw new Error('Store has been initialized already')
 		this.#ref = collection(firestore, this.path).withConverter({
-			fromFirestore: doc => ({
-				id: doc.id,
-				_ref: doc.ref,
-				...this.toModel(doc as any)
-			}),
-			toFirestore: ({ id, _ref, ...model }) => this.toDocument(model as any)
-		}) as CollectionReference<ConvertedModel<DocType, ModelType>, DocType>
+			fromFirestore: this.toModel,
+			toFirestore: this.toDocument
+		}) as CollectionReference<ModelType, DocType>
 	}
 
 	get ref() {
@@ -221,16 +217,14 @@ export class FirebormStore<
 
 	public subscribe = (
 		id: string,
-		{
-			onChange
-		}: { onChange: (data?: ConvertedModel<DocType, ModelType>) => any }
+		{ onChange }: { onChange: (data?: ModelType) => any }
 	) => onSnapshot(doc(this.ref, id), d => onChange(d.data()))
 
 	public subscribeMany = ({
 		onChange,
 		where
 	}: {
-		onChange: (data: ConvertedModel<DocType, ModelType>[]) => any
+		onChange: (data: ModelType[]) => any
 		where: QueryConstraint[]
 	}) =>
 		onSnapshot(query(this.ref, ...where), d =>
