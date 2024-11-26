@@ -76,10 +76,10 @@ export class FirebormDataManager {
 						const targetIsArray = Array.isArray(targetValue)
 
 						if (!targetIsArray) {
-							hasValue = originValue.includes(targetValue.toString())
+							hasValue = originValue?.includes(targetValue?.toString())
 						} else {
 							hasValue = originValue.some(y =>
-								targetValue.includes(y.toString())
+								targetValue?.includes(y?.toString())
 							)
 						}
 
