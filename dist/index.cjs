@@ -285,10 +285,10 @@ class FirebormDataManager {
               const targetValue = x.object[to.property];
               const targetIsArray = Array.isArray(targetValue);
               if (!targetIsArray) {
-                hasValue = originValue.includes(targetValue.toString());
+                hasValue = originValue == null ? void 0 : originValue.includes(targetValue == null ? void 0 : targetValue.toString());
               } else {
                 hasValue = originValue.some(
-                  (y) => targetValue.includes(y.toString())
+                  (y) => targetValue == null ? void 0 : targetValue.includes(y == null ? void 0 : y.toString())
                 );
               }
               return isFromCollection && hasValue;
