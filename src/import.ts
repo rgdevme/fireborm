@@ -3,12 +3,14 @@ import {
 	doc,
 	DocumentReference,
 	Firestore,
+	getFirestore,
 	writeBatch
 } from 'firebase/firestore'
 
 export class FirebormDataManager {
 	#firestore: Firestore
-	constructor(firestore: Firestore) {
+	constructor(firestore?: Firestore) {
+		if (!firestore) firestore = getFirestore()
 		this.#firestore = firestore
 	}
 

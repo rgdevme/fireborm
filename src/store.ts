@@ -14,6 +14,7 @@ import {
 	getCountFromServer,
 	getDoc,
 	getDocs,
+	getFirestore,
 	limit,
 	onSnapshot,
 	orderBy,
@@ -37,8 +38,24 @@ type Where<T> = [
 	unknown
 ][]
 
+export type FirebormStoreParameters<
+	DocType extends DocumentData = DocumentData,
+	ModelType extends object = DocType,
+	CreateType extends object = ModelType,
+	DefaultType extends object = ModelType
+> = {
+	path: string
+	plural: string
+	singular: string
+	defaultData: DefaultType
+	deleteOnUndefined?: (keyof PickOptionals<DocType>)[]
+	onError?: (error: Error) => void
+	toModel?: FSConverter<DocType, ModelType>['fromFirestore']
+	toDocument?: FSConverter<DocType, ModelType>['toFirestore']
+}
+
 export class FirebormStore<
-	DocType extends DocumentData,
+	DocType extends DocumentData = DocumentData,
 	ModelType extends object = DocType,
 	CreateType extends object = ModelType,
 	DefaultType extends object = ModelType
@@ -50,7 +67,8 @@ export class FirebormStore<
 	readonly deleteOnUndefined: (keyof DocType)[] = []
 	#ref?: CollectionReference<ModelType, DocType>
 
-	public init = (firestore: Firestore) => {
+	public init = (firestore?: Firestore) => {
+		if (!firestore) firestore = getFirestore()
 		if (this.#ref) throw new Error('Store has been initialized already')
 		this.#ref = collection(firestore, this.path).withConverter({
 			fromFirestore: this.toModel,
@@ -72,16 +90,7 @@ export class FirebormStore<
 		toDocument,
 		toModel,
 		onError
-	}: {
-		path: string
-		plural: string
-		singular: string
-		defaultData: DefaultType
-		deleteOnUndefined?: (keyof PickOptionals<DocType>)[]
-		onError?: (error: Error) => void
-		toModel?: FSConverter<DocType, ModelType>['fromFirestore']
-		toDocument?: FSConverter<DocType, ModelType>['toFirestore']
-	}) {
+	}: FirebormStoreParameters<DocType, ModelType, CreateType, DefaultType>) {
 		this.path = path
 		this.plural = plural
 		this.singular = singular
@@ -115,13 +124,13 @@ export class FirebormStore<
 	}
 
 	public query = async ({
-		where: wc,
+		where: wc = [],
 		offset,
 		limit: l,
 		order,
 		direction = 'asc'
 	}: {
-		where: Where<DocType>
+		where?: Where<DocType>
 		offset?: number
 		order?: keyof DocType
 		direction?: OrderByDirection
@@ -231,6 +240,6 @@ export class FirebormStore<
 			onChange(d.docs.map(x => x.data()))
 		)
 
-	public toModel = defaultConverter<DocType, ModelType>().fromFirestore
-	public toDocument = defaultConverter<DocType, ModelType>().toFirestore
+	public toModel = defaultConverter.fromFirestore
+	public toDocument = defaultConverter.toFirestore
 }
