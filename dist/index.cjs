@@ -27,11 +27,11 @@ var __privateMethod = (obj, member, method) => {
   __accessCheck(obj, member, "access private method");
   return method;
 };
-var _ref, _ref2, _wrap, wrap_fn, _firestore;
+var _firestore, _ref, _ref2, _wrap, wrap_fn;
 Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
 const functions = require("firebase/functions");
-const storage = require("firebase/storage");
 const firestore = require("firebase/firestore");
+const storage = require("firebase/storage");
 class FirebormCallables {
   constructor(functions$1, functionsNames, options) {
     __publicField(this, "callables", {});
@@ -63,195 +63,8 @@ class FirebormCallables {
     });
   }
 }
-class FirebormStorage {
-  constructor({ path, folder }) {
-    __publicField(this, "path");
-    __privateAdd(this, _ref, void 0);
-    __publicField(this, "init", (storage$1) => {
-      if (__privateGet(this, _ref))
-        throw new Error("Bucket has been initialized already");
-      __privateSet(this, _ref, storage.ref(storage$1, this.path));
-    });
-    __publicField(this, "getFileRef", (name) => storage.ref(this.ref, name));
-    __publicField(this, "upload", async (name, file) => {
-      const fileref = this.getFileRef(name);
-      const { ref: ref2 } = await storage.uploadBytes(fileref, file);
-      return storage.getDownloadURL(ref2);
-    });
-    __publicField(this, "download", async (name) => {
-      const fileref = this.getFileRef(name);
-      return storage.getDownloadURL(fileref);
-    });
-    __publicField(this, "remove", async (name) => {
-      const fileref = this.getFileRef(name);
-      return storage.deleteObject(fileref);
-    });
-    __publicField(this, "list", async () => storage.listAll(this.ref));
-    this.path = `${path}/${folder}`;
-  }
-  get ref() {
-    if (!__privateGet(this, _ref))
-      throw new Error("Bucket hasn't been initialized");
-    return __privateGet(this, _ref);
-  }
-}
-_ref = new WeakMap();
-const defaultConverter = () => ({
-  toFirestore: (model) => model,
-  fromFirestore: (doc) => doc.data()
-});
-class FirebormStore {
-  constructor({
-    path,
-    plural,
-    singular,
-    defaultData,
-    deleteOnUndefined,
-    toDocument,
-    toModel,
-    onError
-  }) {
-    __privateAdd(this, _wrap);
-    __publicField(this, "path");
-    __publicField(this, "plural");
-    __publicField(this, "singular");
-    __publicField(this, "defaultData");
-    __publicField(this, "deleteOnUndefined", []);
-    __privateAdd(this, _ref2, void 0);
-    __publicField(this, "init", (firestore$1) => {
-      if (__privateGet(this, _ref2))
-        throw new Error("Store has been initialized already");
-      __privateSet(this, _ref2, firestore.collection(firestore$1, this.path).withConverter({
-        fromFirestore: this.toModel,
-        toFirestore: this.toDocument
-      }));
-    });
-    __publicField(this, "onError", console.error);
-    __publicField(this, "docRef", (id) => {
-      if (!this.ref)
-        throw new Error("Collection ref isn't defined");
-      if (id)
-        return firestore.doc(this.ref, id);
-      return firestore.doc(this.ref);
-    });
-    __publicField(this, "find", (id) => {
-      return __privateMethod(this, _wrap, wrap_fn).call(this, async () => {
-        const document = await firestore.getDoc(this.docRef(id));
-        return document.data();
-      });
-    });
-    __publicField(this, "query", async ({
-      where: wc,
-      offset,
-      limit: l,
-      order,
-      direction = "asc"
-    }) => {
-      return __privateMethod(this, _wrap, wrap_fn).call(this, async () => {
-        const w = wc.map((c) => firestore.where(...c));
-        if (order !== void 0)
-          w.push(firestore.orderBy(order, direction));
-        if (offset !== void 0)
-          w.push(firestore.startAt(offset));
-        if (l !== void 0)
-          w.push(firestore.limit(l));
-        const q = firestore.query(this.ref, ...w);
-        const snapshot = await firestore.getDocs(q);
-        const result = snapshot.docs.map((d) => d.data());
-        return result;
-      });
-    });
-    __publicField(this, "count", async (...where2) => {
-      return __privateMethod(this, _wrap, wrap_fn).call(this, async () => {
-        const q = firestore.query(this.ref, ...where2);
-        const { data } = await firestore.getCountFromServer(q);
-        return data().count;
-      });
-    });
-    __publicField(this, "exists", async (id) => {
-      return __privateMethod(this, _wrap, wrap_fn).call(this, async () => {
-        const document = await firestore.getDoc(this.docRef(id));
-        return document.exists();
-      });
-    });
-    __publicField(this, "save", async (id, data) => {
-      const upd = {};
-      for (const key in data) {
-        const value = data[key];
-        const isDeletable = this.deleteOnUndefined.includes(key);
-        const isUndefined = value === void 0;
-        if (isDeletable && isUndefined) {
-          upd[key] = firestore.deleteField();
-        } else {
-          upd[key] = value;
-        }
-      }
-      return __privateMethod(this, _wrap, wrap_fn).call(this, firestore.setDoc(this.docRef(id), upd, { merge: true }));
-    });
-    __publicField(this, "relate", async (id, ref, property) => {
-      return __privateMethod(this, _wrap, wrap_fn).call(this, firestore.updateDoc(this.docRef(id), {
-        [property]: firestore.arrayUnion(ref)
-      }));
-    });
-    __publicField(this, "unrelate", async (id, ref, property) => {
-      return __privateMethod(this, _wrap, wrap_fn).call(this, firestore.updateDoc(this.docRef(id), {
-        [property]: firestore.arrayRemove(ref)
-      }));
-    });
-    __publicField(this, "create", (data) => {
-      return __privateMethod(this, _wrap, wrap_fn).call(this, async () => {
-        const upd = { ...this.defaultData, ...data };
-        if (data.id === void 0)
-          return firestore.addDoc(this.ref, upd);
-        const newdocref = this.docRef(data.id);
-        await firestore.setDoc(newdocref, upd);
-        return newdocref;
-      });
-    });
-    __publicField(this, "destroy", async (id) => {
-      return __privateMethod(this, _wrap, wrap_fn).call(this, firestore.deleteDoc(this.docRef(id)));
-    });
-    __publicField(this, "subscribe", (id, { onChange }) => firestore.onSnapshot(firestore.doc(this.ref, id), (d) => onChange(d.data())));
-    __publicField(this, "subscribeMany", ({
-      onChange,
-      where: where2
-    }) => firestore.onSnapshot(
-      firestore.query(this.ref, ...where2),
-      (d) => onChange(d.docs.map((x) => x.data()))
-    ));
-    __publicField(this, "toModel", defaultConverter().fromFirestore);
-    __publicField(this, "toDocument", defaultConverter().toFirestore);
-    this.path = path;
-    this.plural = plural;
-    this.singular = singular;
-    this.defaultData = defaultData;
-    if (deleteOnUndefined)
-      this.deleteOnUndefined = deleteOnUndefined;
-    if (onError)
-      this.onError = onError;
-    if (toModel)
-      this.toModel = toModel;
-    if (toDocument)
-      this.toDocument = toDocument;
-  }
-  get ref() {
-    if (!__privateGet(this, _ref2))
-      throw new Error("Store hasn't been initialized");
-    return __privateGet(this, _ref2);
-  }
-}
-_ref2 = new WeakMap();
-_wrap = new WeakSet();
-wrap_fn = function(f) {
-  try {
-    return f instanceof Promise ? f : f();
-  } catch (error) {
-    this.onError(error);
-    throw error;
-  }
-};
 class FirebormDataManager {
-  constructor(firestore2) {
+  constructor(firestore$1) {
     __privateAdd(this, _firestore, void 0);
     __publicField(this, "import", async ({
       files,
@@ -341,10 +154,203 @@ class FirebormDataManager {
       });
       await batch.commit();
     });
-    __privateSet(this, _firestore, firestore2);
+    if (!firestore$1)
+      firestore$1 = firestore.getFirestore();
+    __privateSet(this, _firestore, firestore$1);
   }
 }
 _firestore = new WeakMap();
+class FirebormStorage {
+  constructor({ path, folder }) {
+    __publicField(this, "path");
+    __privateAdd(this, _ref, void 0);
+    __publicField(this, "init", (storage$1) => {
+      if (!storage$1)
+        storage$1 = storage.getStorage();
+      if (__privateGet(this, _ref))
+        throw new Error("Bucket has been initialized already");
+      __privateSet(this, _ref, storage.ref(storage$1, this.path));
+    });
+    __publicField(this, "getFileRef", (name) => storage.ref(this.ref, name));
+    __publicField(this, "upload", async (name, file) => {
+      const fileref = this.getFileRef(name);
+      const { ref: ref2 } = await storage.uploadBytes(fileref, file);
+      return storage.getDownloadURL(ref2);
+    });
+    __publicField(this, "download", async (name) => {
+      const fileref = this.getFileRef(name);
+      return storage.getDownloadURL(fileref);
+    });
+    __publicField(this, "remove", async (name) => {
+      const fileref = this.getFileRef(name);
+      return storage.deleteObject(fileref);
+    });
+    __publicField(this, "list", async () => storage.listAll(this.ref));
+    this.path = `${path}/${folder}`;
+  }
+  get ref() {
+    if (!__privateGet(this, _ref))
+      throw new Error("Bucket hasn't been initialized");
+    return __privateGet(this, _ref);
+  }
+}
+_ref = new WeakMap();
+const defaultConverter = {
+  toFirestore: (model) => model,
+  fromFirestore: (doc) => doc.data()
+};
+class FirebormStore {
+  constructor({
+    path,
+    plural,
+    singular,
+    defaultData,
+    deleteOnUndefined,
+    toDocument,
+    toModel,
+    onError
+  }) {
+    __privateAdd(this, _wrap);
+    __publicField(this, "path");
+    __publicField(this, "plural");
+    __publicField(this, "singular");
+    __publicField(this, "defaultData");
+    __publicField(this, "deleteOnUndefined", []);
+    __privateAdd(this, _ref2, void 0);
+    __publicField(this, "init", (firestore$1) => {
+      if (!firestore$1)
+        firestore$1 = firestore.getFirestore();
+      if (__privateGet(this, _ref2))
+        throw new Error("Store has been initialized already");
+      __privateSet(this, _ref2, firestore.collection(firestore$1, this.path).withConverter({
+        fromFirestore: this.toModel,
+        toFirestore: this.toDocument
+      }));
+    });
+    __publicField(this, "onError", console.error);
+    __publicField(this, "docRef", (id) => {
+      if (!this.ref)
+        throw new Error("Collection ref isn't defined");
+      if (id)
+        return firestore.doc(this.ref, id);
+      return firestore.doc(this.ref);
+    });
+    __publicField(this, "find", (id) => {
+      return __privateMethod(this, _wrap, wrap_fn).call(this, async () => {
+        const document = await firestore.getDoc(this.docRef(id));
+        return document.data();
+      });
+    });
+    __publicField(this, "query", async ({
+      where: wc = [],
+      offset,
+      limit: l,
+      order,
+      direction = "asc"
+    }) => {
+      return __privateMethod(this, _wrap, wrap_fn).call(this, async () => {
+        const w = wc.map((c) => firestore.where(...c));
+        if (order !== void 0)
+          w.push(firestore.orderBy(order, direction));
+        if (offset !== void 0)
+          w.push(firestore.startAt(offset));
+        if (l !== void 0)
+          w.push(firestore.limit(l));
+        const q = firestore.query(this.ref, ...w);
+        const snapshot = await firestore.getDocs(q);
+        const result = snapshot.docs.map((d) => d.data());
+        return result;
+      });
+    });
+    __publicField(this, "count", async (...where2) => {
+      return __privateMethod(this, _wrap, wrap_fn).call(this, async () => {
+        const q = firestore.query(this.ref, ...where2);
+        const res = await firestore.getCountFromServer(q);
+        return res.data().count;
+      });
+    });
+    __publicField(this, "exists", async (id) => {
+      return __privateMethod(this, _wrap, wrap_fn).call(this, async () => {
+        const document = await firestore.getDoc(this.docRef(id));
+        return document.exists();
+      });
+    });
+    __publicField(this, "save", async (id, data) => {
+      const upd = {};
+      for (const key in data) {
+        const value = data[key];
+        const isDeletable = this.deleteOnUndefined.includes(key);
+        const isUndefined = value === void 0;
+        if (isDeletable && isUndefined) {
+          upd[key] = firestore.deleteField();
+        } else {
+          upd[key] = value;
+        }
+      }
+      return __privateMethod(this, _wrap, wrap_fn).call(this, firestore.setDoc(this.docRef(id), upd, { merge: true }));
+    });
+    __publicField(this, "relate", async (id, ref, property) => {
+      return __privateMethod(this, _wrap, wrap_fn).call(this, firestore.updateDoc(this.docRef(id), {
+        [property]: firestore.arrayUnion(ref)
+      }));
+    });
+    __publicField(this, "unrelate", async (id, ref, property) => {
+      return __privateMethod(this, _wrap, wrap_fn).call(this, firestore.updateDoc(this.docRef(id), {
+        [property]: firestore.arrayRemove(ref)
+      }));
+    });
+    __publicField(this, "create", (data) => {
+      return __privateMethod(this, _wrap, wrap_fn).call(this, async () => {
+        const upd = { ...this.defaultData, ...data };
+        if (data.id === void 0)
+          return firestore.addDoc(this.ref, upd);
+        const newdocref = this.docRef(data.id);
+        await firestore.setDoc(newdocref, upd);
+        return newdocref;
+      });
+    });
+    __publicField(this, "destroy", async (id) => {
+      return __privateMethod(this, _wrap, wrap_fn).call(this, firestore.deleteDoc(this.docRef(id)));
+    });
+    __publicField(this, "subscribe", (id, { onChange }) => firestore.onSnapshot(firestore.doc(this.ref, id), (d) => onChange(d.data())));
+    __publicField(this, "subscribeMany", ({
+      onChange,
+      where: where2
+    }) => firestore.onSnapshot(
+      firestore.query(this.ref, ...where2),
+      (d) => onChange(d.docs.map((x) => x.data()))
+    ));
+    __publicField(this, "toModel", defaultConverter.fromFirestore);
+    __publicField(this, "toDocument", defaultConverter.toFirestore);
+    this.path = path;
+    this.plural = plural;
+    this.singular = singular;
+    this.defaultData = defaultData;
+    if (deleteOnUndefined)
+      this.deleteOnUndefined = deleteOnUndefined;
+    if (onError)
+      this.onError = onError;
+    if (toModel)
+      this.toModel = toModel;
+    if (toDocument)
+      this.toDocument = toDocument;
+  }
+  get ref() {
+    if (!__privateGet(this, _ref2))
+      throw new Error("Store hasn't been initialized");
+    return __privateGet(this, _ref2);
+  }
+}
+_ref2 = new WeakMap();
+_wrap = new WeakSet();
+wrap_fn = function(f) {
+  try {
+    return f instanceof Promise ? f : f();
+  } catch (error) {
+    this.onError(error);
+    throw error;
+  }
+};
 const FireBorm = ({
   firestore: firestore2,
   storage: fbstorage,
@@ -373,3 +379,8 @@ const FireBorm = ({
   };
 };
 exports.FireBorm = FireBorm;
+exports.FirebormCallables = FirebormCallables;
+exports.FirebormDataManager = FirebormDataManager;
+exports.FirebormStorage = FirebormStorage;
+exports.FirebormStore = FirebormStore;
+exports.defaultConverter = defaultConverter;

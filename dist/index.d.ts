@@ -5,6 +5,7 @@ import { FieldPath } from 'firebase/firestore';
 import { FirebaseStorage } from 'firebase/storage';
 import { Firestore } from 'firebase/firestore';
 import { Functions } from 'firebase/functions';
+import { FunctionsError } from 'firebase/functions';
 import { ListResult } from '@firebase/storage';
 import { OrderByDirection } from 'firebase/firestore';
 import { QueryConstraint } from 'firebase/firestore';
@@ -21,26 +22,33 @@ export declare type ConvertedModel<D extends DocumentData, M extends D | Documen
     _ref: DocumentReference<ThisType<ConvertedModel<D, M>>, D>;
 }>;
 
+export declare const defaultConverter: FSConverter<any, any>;
+
 export declare type DefaultModel<M extends Object> = Omit<M, keyof PickOptionals<M> | 'id' | '_ref'>;
 
-export declare const FireBorm: ({ firestore, storage: fbstorage, functions }: {
-    firestore: Firestore;
-    storage: FirebaseStorage;
-    functions?: Functions;
-}) => {
-    initializeStore: <D extends DocumentData, M extends Object = D, C extends Object = M, I extends Object = M>(options: ConstructorParameters<typeof FirebormStore<D, M, C, I>>[0]) => FirebormStore<D, M, C, I>;
-    initializeStorage: (options: ConstructorParameters<typeof FirebormStorage>[0]) => FirebormStorage;
+export declare const FireBorm: ({ firestore, storage: fbstorage, functions }: FirebormParams) => {
+    initializeStore: <D extends DocumentData, M extends Object = D, C extends Object = M, I extends Object = M>(options: FirebormStoreParameters<D, M, C, I>) => FirebormStore<D, M, C, I>;
+    initializeStorage: (options: FirebormStorageParameters) => FirebormStorage;
     initializeCallables: <T extends FirebormCalls>(functionNames: (keyof T)[]) => T;
     initializeDataManager: () => FirebormDataManager;
 };
 
 export declare type FirebormCall<P, R> = (params: P) => Promise<R>;
 
-declare type FirebormCalls<P = any, R = any> = Record<string, FirebormCall<P, R>>;
+export declare class FirebormCallables<T extends FirebormCalls> {
+    readonly callables: T;
+    constructor(functions: Functions, functionsNames: (keyof T)[], options?: FirebormCallablesOptions);
+}
 
-declare class FirebormDataManager {
+export declare type FirebormCallablesOptions = {
+    onError?: (err: FunctionsError) => unknown;
+};
+
+export declare type FirebormCalls<P = any, R = any> = Record<string, FirebormCall<P, R>>;
+
+export declare class FirebormDataManager {
     #private;
-    constructor(firestore: Firestore);
+    constructor(firestore?: Firestore);
     import: <Files extends {
         [collection: string]: object[];
     }>({ files, ignore, relations }: {
@@ -59,14 +67,17 @@ declare class FirebormDataManager {
     }) => Promise<void>;
 }
 
-declare class FirebormStorage {
+export declare type FirebormParams = {
+    firestore: Firestore;
+    storage: FirebaseStorage;
+    functions?: Functions;
+};
+
+export declare class FirebormStorage {
     #private;
     readonly path: string;
-    constructor({ path, folder }: {
-        path: string;
-        folder: string;
-    });
-    init: (storage: FirebaseStorage) => void;
+    constructor({ path, folder }: FirebormStorageParameters);
+    init: (storage?: FirebaseStorage) => void;
     get ref(): StorageReference;
     getFileRef: (name: string) => StorageReference;
     upload: (name: string, file: File) => Promise<string>;
@@ -75,30 +86,26 @@ declare class FirebormStorage {
     list: () => Promise<ListResult>;
 }
 
-declare class FirebormStore<DocType extends DocumentData, ModelType extends object = DocType, CreateType extends object = ModelType, DefaultType extends object = ModelType> {
+export declare type FirebormStorageParameters = {
+    path: string;
+    folder: string;
+};
+
+export declare class FirebormStore<DocType extends DocumentData = DocumentData, ModelType extends object = DocType, CreateType extends object = ModelType, DefaultType extends object = ModelType> {
     #private;
     readonly path: string;
     readonly plural: string;
     readonly singular: string;
     readonly defaultData: DefaultType;
     readonly deleteOnUndefined: (keyof DocType)[];
-    init: (firestore: Firestore) => void;
+    init: (firestore?: Firestore) => void;
     get ref(): CollectionReference<ModelType, DocType>;
-    constructor({ path, plural, singular, defaultData, deleteOnUndefined, toDocument, toModel, onError }: {
-        path: string;
-        plural: string;
-        singular: string;
-        defaultData: DefaultType;
-        deleteOnUndefined?: (keyof PickOptionals<DocType>)[];
-        onError?: (error: Error) => void;
-        toModel?: FSConverter<DocType, ModelType>['fromFirestore'];
-        toDocument?: FSConverter<DocType, ModelType>['toFirestore'];
-    });
+    constructor({ path, plural, singular, defaultData, deleteOnUndefined, toDocument, toModel, onError }: FirebormStoreParameters<DocType, ModelType, CreateType, DefaultType>);
     onError: (error: Error) => void;
     docRef: (id?: string) => DocumentReference<ModelType, DocType>;
     find: (id: string) => Promise<ModelType | undefined>;
     query: ({ where: wc, offset, limit: l, order, direction }: {
-        where: Where<DocType>;
+        where?: Where<DocType>;
         offset?: number;
         order?: keyof DocType;
         direction?: OrderByDirection;
@@ -120,11 +127,22 @@ declare class FirebormStore<DocType extends DocumentData, ModelType extends obje
         onChange: (data: ModelType[]) => any;
         where: QueryConstraint[];
     }) => Unsubscribe;
-    toModel: (doc: QueryDocumentSnapshot_2<DocType, DocType>) => ModelType;
-    toDocument: (model: ModelType) => DocType;
+    toModel: (doc: QueryDocumentSnapshot_2<any, any>) => any;
+    toDocument: (model: any) => any;
 }
 
-declare type FSConverter<D extends DocumentData, M extends D | DocumentData> = {
+export declare type FirebormStoreParameters<DocType extends DocumentData = DocumentData, ModelType extends object = DocType, CreateType extends object = ModelType, DefaultType extends object = ModelType> = {
+    path: string;
+    plural: string;
+    singular: string;
+    defaultData: DefaultType;
+    deleteOnUndefined?: (keyof PickOptionals<DocType>)[];
+    onError?: (error: Error) => void;
+    toModel?: FSConverter<DocType, ModelType>['fromFirestore'];
+    toDocument?: FSConverter<DocType, ModelType>['toFirestore'];
+};
+
+export declare type FSConverter<D extends DocumentData = DocumentData, M extends D | DocumentData = D> = {
     toFirestore: (model: M) => D;
     fromFirestore: (doc: QueryDocumentSnapshot<D, D>) => M;
 };
