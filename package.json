@@ -1,6 +1,6 @@
 {
   "name": "fireborm",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "A Firebase ORM-like wrapper, inspired by packages like sequelize and mongoose",
   "type": "module",
   "source": "src/index.ts",
