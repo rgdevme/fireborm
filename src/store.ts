@@ -142,8 +142,8 @@ export class FirebormStore<
 	public count = async (...where: QueryConstraint[]) => {
 		return this.#wrap(async () => {
 			const q = query(this.ref, ...where)
-			const { data } = await getCountFromServer(q)
-			return data().count
+			const res = await getCountFromServer(q)
+			return res.data().count
 		})
 	}
 
