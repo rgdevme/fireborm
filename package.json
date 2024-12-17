@@ -15,7 +15,6 @@
     }
   },
   "scripts": {
-    "serve": "vite serve",
     "build": "vite build",
     "bump": "npx bumpp"
   },
