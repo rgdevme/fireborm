@@ -1,3 +1,4 @@
+import { getApp } from 'firebase/app'
 import {
 	FirebaseStorage,
 	StorageReference,
@@ -19,7 +20,10 @@ export class FirebormStorage {
 	}
 
 	public init = (storage?: FirebaseStorage) => {
-		if (!storage) storage = getStorage()
+		if (!storage) {
+			const app = getApp()
+			storage = getStorage(app)
+		}
 		if (this.#ref) throw new Error('Bucket has been initialized already')
 		this.#ref = ref(storage, this.path)
 	}

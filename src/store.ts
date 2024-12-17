@@ -1,3 +1,4 @@
+import { getApp } from 'firebase/app'
 import {
 	addDoc,
 	arrayRemove,
@@ -68,7 +69,10 @@ export class FirebormStore<
 	#ref?: CollectionReference<ModelType, DocType>
 
 	public init = (firestore?: Firestore) => {
-		if (!firestore) firestore = getFirestore()
+		if (!firestore) {
+			const app = getApp()
+			firestore = getFirestore(app)
+		}
 		if (this.#ref) throw new Error('Store has been initialized already')
 		this.#ref = collection(firestore, this.path).withConverter({
 			fromFirestore: this.toModel,

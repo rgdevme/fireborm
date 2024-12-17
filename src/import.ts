@@ -1,3 +1,4 @@
+import { getApp } from 'firebase/app'
 import {
 	collection,
 	doc,
@@ -9,8 +10,12 @@ import {
 
 export class FirebormDataManager {
 	#firestore: Firestore
+
 	constructor(firestore?: Firestore) {
-		if (!firestore) firestore = getFirestore()
+		if (!firestore) {
+			const app = getApp()
+			firestore = getFirestore(app)
+		}
 		this.#firestore = firestore
 	}
 
