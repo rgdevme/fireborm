@@ -1,5 +1,7 @@
 .github
 examples
 src
-vite.config.js
+vite.config.ts
 bump.config.ts
+tsconfig.json
+.gitattributes
