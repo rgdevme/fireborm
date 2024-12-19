@@ -17,12 +17,12 @@ export default defineConfig(({ command }) => ({
 			name: 'index',
 			fileName: 'index',
 			formats: ['cjs', 'es']
-		},	
+		},
 		outDir: 'dist',
 		emptyOutDir: false,
 		minify: false,
 		rollupOptions: {
-			external: [/firebase/, /node_modules/]
+			external: [/firebase/]
 		}
 	},
 	plugins: [
