@@ -16,6 +16,7 @@
   },
   "scripts": {
     "build": "vite build",
+    "watch": "vite build -w",
     "bump": "npx bumpp"
   },
   "engines": {
