@@ -1,30 +1,19 @@
-import { getApp } from 'firebase/app'
 import {
 	FirebaseStorage,
 	StorageReference,
 	deleteObject,
 	getDownloadURL,
-	getStorage,
 	listAll,
 	ref,
 	uploadBytes
 } from 'firebase/storage'
 
-export type FirebormStorageParameters = { path: string; folder: string }
 export class FirebormStorage {
 	readonly path: string
 	#ref?: StorageReference
 
-	constructor({ path, folder }: FirebormStorageParameters) {
-		this.path = `${path}/${folder}`
-	}
-
-	public init = (storage?: FirebaseStorage) => {
-		if (!storage) {
-			const app = getApp()
-			storage = getStorage(app)
-		}
-		if (this.#ref) throw new Error('Bucket has been initialized already')
+	constructor(storage: FirebaseStorage, path: string) {
+		this.path = path
 		this.#ref = ref(storage, this.path)
 	}
 

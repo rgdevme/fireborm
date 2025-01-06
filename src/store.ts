@@ -1,4 +1,3 @@
-import { getApp } from 'firebase/app'
 import {
 	addDoc,
 	arrayRemove,
@@ -15,7 +14,6 @@ import {
 	getCountFromServer,
 	getDoc,
 	getDocs,
-	getFirestore,
 	limit,
 	onSnapshot,
 	orderBy,
@@ -66,35 +64,26 @@ export class FirebormStore<
 	readonly singular: string
 	readonly defaultData: DefaultType
 	readonly deleteOnUndefined: (keyof DocType)[] = []
-	#ref?: CollectionReference<ModelType, DocType>
-
-	public init = (firestore?: Firestore) => {
-		if (!firestore) {
-			const app = getApp()
-			firestore = getFirestore(app)
-		}
-		if (this.#ref) throw new Error('Store has been initialized already')
-		this.#ref = collection(firestore, this.path).withConverter({
-			fromFirestore: this.toModel,
-			toFirestore: this.toDocument
-		}) as CollectionReference<ModelType, DocType>
-	}
+	#ref: CollectionReference<ModelType, DocType>
 
 	get ref() {
 		if (!this.#ref) throw new Error("Store hasn't been initialized")
 		return this.#ref
 	}
 
-	constructor({
-		path,
-		plural,
-		singular,
-		defaultData,
-		deleteOnUndefined,
-		toDocument,
-		toModel,
-		onError
-	}: FirebormStoreParameters<DocType, ModelType, CreateType, DefaultType>) {
+	constructor(
+		firestore: Firestore,
+		{
+			path,
+			plural,
+			singular,
+			defaultData,
+			deleteOnUndefined,
+			toDocument,
+			toModel,
+			onError
+		}: FirebormStoreParameters<DocType, ModelType, CreateType, DefaultType>
+	) {
 		this.path = path
 		this.plural = plural
 		this.singular = singular
@@ -103,6 +92,11 @@ export class FirebormStore<
 		if (onError) this.onError = onError
 		if (toModel) this.toModel = toModel
 		if (toDocument) this.toDocument = toDocument
+
+		this.#ref = collection(firestore, this.path).withConverter({
+			fromFirestore: this.toModel,
+			toFirestore: this.toDocument
+		})
 	}
 
 	onError: (error: Error) => void = console.error
