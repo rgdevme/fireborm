@@ -1,9 +1,26 @@
-import { DocumentData, Firestore } from 'firebase/firestore'
-import { Functions } from 'firebase/functions'
-import { FirebaseStorage } from 'firebase/storage'
+import { FirebaseApp, FirebaseOptions, initializeApp } from 'firebase/app'
+import { connectAuthEmulator, getAuth } from 'firebase/auth'
+import {
+	connectFirestoreEmulator,
+	DocumentData,
+	Firestore,
+	FirestoreSettings,
+	getFirestore,
+	initializeFirestore
+} from 'firebase/firestore'
+import {
+	connectFunctionsEmulator,
+	Functions,
+	getFunctions
+} from 'firebase/functions'
+import {
+	connectStorageEmulator,
+	FirebaseStorage,
+	getStorage
+} from 'firebase/storage'
 import { FirebormCallables, FirebormCalls } from './callable'
 import { FirebormDataManager } from './import'
-import { FirebormStorage, FirebormStorageParameters } from './storage'
+import { FirebormStorage } from './storage'
 import { FirebormStore, FirebormStoreParameters } from './store'
 
 export * from './callable'
@@ -19,38 +36,86 @@ export type FirebormParams = {
 	functions?: Functions
 }
 
-export const FireBorm = ({
-	firestore,
-	storage: fbstorage,
-	functions
-}: FirebormParams) => {
-	return {
-		initializeStore: <
-			D extends DocumentData,
-			M extends Object = D,
-			C extends Object = M,
-			I extends Object = M
-		>(
-			options: FirebormStoreParameters<D, M, C, I>
-		) => {
-			const store = new FirebormStore<D, M, C, I>(options)
-			store.init(firestore)
-			return store
-		},
-		initializeStorage: (options: FirebormStorageParameters) => {
-			const storage = new FirebormStorage(options)
-			storage.init(fbstorage)
-			return storage
-		},
-		initializeCallables: <T extends FirebormCalls>(
-			functionNames: (keyof T)[]
-		) => {
-			if (!functions) throw new Error("Functions hasn't been provided")
-			const callables = new FirebormCallables<T>(functions, functionNames)
-			return callables.callables
-		},
-		initializeDataManager: () => {
-			return new FirebormDataManager(firestore)
+const INSTANCE = Symbol('instance')
+
+export class Fireborm {
+	config: FirebaseOptions
+	app: FirebaseApp
+
+	constructor(
+		config: FirebaseOptions,
+		settings?: {
+			emulate?:
+				| true
+				| {
+						host?: string
+						firestore?: number
+						storage?: number
+						auth?: number
+						functions?: number
+				  }
+			firestore?: FirestoreSettings
 		}
+	) {
+		this.config = config
+		this.app = initializeApp(config)
+		if (settings?.firestore) {
+			initializeFirestore(this.app, settings.firestore || {})
+		}
+
+		if (!!settings?.emulate) {
+			let host = '127.0.0.1'
+			const port = {
+				auth: 9199,
+				firestore: 9099,
+				functions: 5001,
+				storage: 8080
+			}
+
+			if (typeof settings.emulate === 'object') {
+				const opts = settings.emulate
+				if (opts.host) host = opts.host
+				if (opts.auth) port.auth = opts.auth
+				if (opts.firestore) port.firestore = opts.firestore
+				if (opts.functions) port.functions = opts.functions
+				if (opts.storage) port.storage = opts.storage
+			}
+
+			connectAuthEmulator(getAuth(this.app), `http://${host}:${port.auth}`)
+			connectFirestoreEmulator(getFirestore(this.app), host, port.firestore)
+			connectFunctionsEmulator(getFunctions(this.app), host, port.functions)
+			connectStorageEmulator(getStorage(this.app), host, port.storage)
+		}
+
+		if (!Fireborm[INSTANCE]) Fireborm[INSTANCE] = this
+		return Fireborm[INSTANCE]
+	}
+
+	createStore = <
+		D extends DocumentData,
+		M extends Object = D,
+		C extends Object = M,
+		I extends Object = M
+	>(
+		options: FirebormStoreParameters<D, M, C, I>
+	) => {
+		const firestore = getFirestore(this.app)
+		return new FirebormStore<D, M, C, I>(firestore, options)
+	}
+
+	createStorage = ({ path, bucket }: { path: string; bucket?: string }) => {
+		const storage = getStorage(this.app, bucket)
+		return new FirebormStorage(storage, path)
+	}
+
+	createDataManager = () => {
+		const firestore = getFirestore(this.app)
+		return new FirebormDataManager(firestore)
+	}
+
+	createCallables = <T extends FirebormCalls>(functionNames: (keyof T)[]) => {
+		const functions = getFunctions(this.app)
+		const callables = new FirebormCallables<T>(functions, functionNames)
+		return callables.callables
 	}
 }
