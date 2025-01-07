@@ -108,29 +108,42 @@ export class FirebormStore<
 			throw error
 		}
 	}
-	public docRef = (id?: string) => {
+	public docRef = <
+		Doc extends DocType = DocType,
+		Model extends ModelType = ModelType
+	>(
+		id?: string
+	) => {
 		if (!this.ref) throw new Error("Collection ref isn't defined")
-		if (id) return doc(this.ref, id)
-		return doc(this.ref)
+		if (id) return doc<Model, Doc>(this.ref as any, id)
+		return doc<Model, Doc>(this.ref as any)
 	}
 
-	public find = (id: string) => {
+	public find = <
+		Doc extends DocType = DocType,
+		Model extends ModelType = ModelType
+	>(
+		id: string
+	) => {
 		return this.#wrap(async () => {
-			const document = await getDoc(this.docRef(id))
+			const document = await getDoc(this.docRef<Doc, Model>(id))
 			return document.data()
 		})
 	}
 
-	public query = async ({
+	public query = async <
+		Doc extends DocType = DocType,
+		Model extends ModelType = ModelType
+	>({
 		where: wc = [],
 		offset,
 		limit: l,
 		order,
 		direction = 'asc'
 	}: {
-		where?: Where<DocType>
+		where?: Where<Doc>
 		offset?: number
-		order?: keyof DocType
+		order?: keyof Doc
 		direction?: OrderByDirection
 		limit?: number
 	}) => {
@@ -139,8 +152,8 @@ export class FirebormStore<
 			if (order !== undefined) w.push(orderBy(order as string, direction))
 			if (offset !== undefined) w.push(startAt(offset))
 			if (l !== undefined) w.push(limit(l))
-			const q = query(this.ref, ...w)
-			const snapshot = await getDocs(q)
+			const q = query<Model, Doc>(this.ref as any, ...w)
+			const snapshot = await getDocs<Model, Doc>(q)
 			const result = snapshot.docs.map(d => d.data())
 			return result
 		})
@@ -161,7 +174,13 @@ export class FirebormStore<
 		})
 	}
 
-	public save = async (id: string, data: UpdateData<ModelType>) => {
+	public save = async <
+		Doc extends DocType = DocType,
+		Model extends ModelType = ModelType
+	>(
+		id: string,
+		data: UpdateData<Model>
+	) => {
 		const upd = {} as typeof data
 
 		for (const key in data) {
@@ -175,66 +194,90 @@ export class FirebormStore<
 			}
 		}
 
-		return this.#wrap(setDoc(this.docRef(id), upd, { merge: true }))
+		return this.#wrap(
+			setDoc(this.docRef<Doc, Model>(id), upd, {
+				merge: true
+			})
+		)
 	}
 
-	public relate = async (
+	public relate = async <
+		Doc extends DocType = DocType,
+		Model extends ModelType = ModelType
+	>(
 		id: string,
 		ref: DocumentReference,
-		property: keyof PickByType<
-			ModelType,
-			DocumentReference[] | DocumentReference
-		>
+		property: keyof PickByType<Model, DocumentReference[] | DocumentReference>
 	) => {
 		return this.#wrap(
 			updateDoc(this.docRef(id), {
 				[property]: arrayUnion(ref)
-			} as UpdateData<DocType>)
+			} as UpdateData<Doc>)
 		)
 	}
 
-	public unrelate = async (
+	public unrelate = async <
+		Doc extends DocType = DocType,
+		Model extends ModelType = ModelType
+	>(
 		id: string,
 		ref: DocumentReference,
-		property: keyof PickByType<
-			ModelType,
-			DocumentReference[] | DocumentReference
-		>
+		property: keyof PickByType<Model, DocumentReference[] | DocumentReference>
 	) => {
 		return this.#wrap(
 			updateDoc(this.docRef(id), {
 				[property]: arrayRemove(ref)
-			} as UpdateData<DocType>)
+			} as UpdateData<Doc>)
 		)
 	}
 
-	public create = (data: WithFieldValue<CreateType & { id?: string }>) => {
+	public create = <
+		Doc extends DocType = DocType,
+		Model extends ModelType = ModelType,
+		Create extends CreateType = CreateType
+	>(
+		data: WithFieldValue<Create & { id?: string }>
+	) => {
 		return this.#wrap(async () => {
-			const upd = { ...this.defaultData, ...data } as ModelType
+			const upd = { ...this.defaultData, ...data } as Model
 			if (data.id === undefined) return addDoc(this.ref, upd)
-			const newdocref = this.docRef(data.id as string)
+			const newdocref = this.docRef<Doc, Model>(data.id as string)
 			await setDoc(newdocref, upd)
 			return newdocref
 		})
 	}
 
-	public destroy = async (id: string) => {
-		return this.#wrap(deleteDoc(this.docRef(id)))
+	public destroy = async <
+		Doc extends DocType = DocType,
+		Model extends ModelType = ModelType
+	>(
+		id: string
+	) => {
+		return this.#wrap(deleteDoc(this.docRef<Doc, Model>(id)))
 	}
 
-	public subscribe = (
+	public subscribe = <
+		Doc extends DocType = DocType,
+		Model extends ModelType = ModelType
+	>(
 		id: string,
-		{ onChange }: { onChange: (data?: ModelType) => any }
-	) => onSnapshot(doc(this.ref, id), d => onChange(d.data()))
+		{ onChange }: { onChange: (data?: Model) => any }
+	) =>
+		onSnapshot<Model, Doc>(doc<Model, Doc>(this.ref as any, id), d =>
+			onChange(d.data())
+		)
 
-	public subscribeMany = ({
+	public subscribeMany = <
+		Doc extends DocType = DocType,
+		Model extends ModelType = ModelType
+	>({
 		onChange,
 		where
 	}: {
-		onChange: (data: ModelType[]) => any
+		onChange: (data: Model[]) => any
 		where: QueryConstraint[]
 	}) =>
-		onSnapshot(query(this.ref, ...where), d =>
+		onSnapshot<Model, Doc>(query<Model, Doc>(this.ref as any, ...where), d =>
 			onChange(d.docs.map(x => x.data()))
 		)
 
