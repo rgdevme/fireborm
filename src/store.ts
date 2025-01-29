@@ -1,5 +1,6 @@
 import {
 	addDoc,
+	and,
 	arrayRemove,
 	arrayUnion,
 	collection,
@@ -9,6 +10,8 @@ import {
 	doc,
 	DocumentData,
 	DocumentReference,
+	endAt,
+	endBefore,
 	FieldPath,
 	Firestore,
 	getCountFromServer,
@@ -16,11 +19,17 @@ import {
 	getDocs,
 	limit,
 	onSnapshot,
+	or,
 	orderBy,
 	OrderByDirection,
 	query,
-	QueryConstraint,
+	QueryCompositeFilterConstraint,
+	QueryDocumentSnapshot,
+	QueryFieldFilterConstraint,
+	QueryFilterConstraint,
+	QueryNonFilterConstraint,
 	setDoc,
+	startAfter,
 	startAt,
 	UpdateData,
 	updateDoc,
@@ -31,11 +40,34 @@ import {
 import { defaultConverter, FSConverter } from './converter'
 import { PickByType, PickOptionals } from './utilities'
 
-type Where<T> = [
-	keyof T extends string ? keyof T | FieldPath : FieldPath,
+export type Constrain<T = any> = [
+	T extends any
+		? string
+		: keyof T extends string
+		? keyof T | FieldPath
+		: FieldPath,
 	WhereFilterOp,
 	unknown
-][]
+]
+
+export type Where<T = any> = (
+	| { and: Constrain<T>[] }
+	| { or: Constrain<T>[] }
+)[]
+
+export type QueryOptions<T = any> = {
+	where?: Where<T>
+	order?: keyof T
+	direction?: OrderByDirection
+	limit?: number
+	pagination?: {
+		pointer: DocumentData | null
+		start: boolean
+		include: boolean
+	}
+}
+
+export type CountOptions<T = any> = NonNullable<QueryOptions<T>['where']>
 
 export type FirebormStoreParameters<
 	DocType extends DocumentData = DocumentData,
@@ -131,37 +163,84 @@ export class FirebormStore<
 		})
 	}
 
+	private buildQueryConstrains = <Doc extends DocType = DocType>({
+		where: filterConstrains = [],
+		limit: max = undefined,
+		pagination = undefined,
+		order = undefined,
+		direction = 'asc'
+	}: QueryOptions<Doc> = {}) => {
+		let compositeConstrains: QueryFilterConstraint
+		let isSingle = false
+		const unwrappedCompositeConstrains = filterConstrains.map(
+			(filterConstrain, _, a) => {
+				const key = 'and' in filterConstrain ? 'and' : 'or'
+				const isOr = key === 'or'
+				const qc: QueryFieldFilterConstraint[] = filterConstrain[key].map(
+					(constrain: Constrain<Doc>) => where(...constrain)
+				)
+
+				isSingle = a.length === 1 && qc.length === 1
+
+				if (isSingle) return qc[0]
+				else if (isOr) return or(...qc)
+				else return and(...qc)
+			}
+		)
+
+		if (isSingle) {
+			compositeConstrains = unwrappedCompositeConstrains[0]
+		} else {
+			compositeConstrains = and(...unwrappedCompositeConstrains)
+		}
+
+		const nonCompositecontrains: QueryNonFilterConstraint[] = []
+		if (order !== undefined) {
+			nonCompositecontrains.push(orderBy(order as string, direction))
+
+			if (pagination?.pointer) {
+				let method = pagination.start
+					? pagination.include
+						? startAt
+						: startAfter
+					: pagination.include
+					? endAt
+					: endBefore
+
+				nonCompositecontrains.push(method(pagination.pointer))
+			}
+		}
+		if (max !== undefined) {
+			nonCompositecontrains.push(limit(max))
+		}
+
+		return [compositeConstrains, ...nonCompositecontrains] as [
+			QueryCompositeFilterConstraint,
+			...[QueryNonFilterConstraint]
+		]
+	}
+
 	public query = async <
 		Doc extends DocType = DocType,
 		Model extends ModelType = ModelType
-	>({
-		where: wc = [],
-		offset,
-		limit: l,
-		order,
-		direction = 'asc'
-	}: {
-		where?: Where<Doc>
-		offset?: number
-		order?: keyof Doc
-		direction?: OrderByDirection
-		limit?: number
-	}) => {
+	>(
+		queryOptions?: QueryOptions<Doc>
+	) => {
 		return this.#wrap(async () => {
-			const w: QueryConstraint[] = wc.map(c => where(...c))
-			if (order !== undefined) w.push(orderBy(order as string, direction))
-			if (offset !== undefined) w.push(startAt(offset))
-			if (l !== undefined) w.push(limit(l))
-			const q = query<Model, Doc>(this.ref as any, ...w)
+			const constrains = this.buildQueryConstrains(queryOptions)
+			const q = query<Model, Doc>(this.ref as any, ...constrains)
 			const snapshot = await getDocs<Model, Doc>(q)
 			const result = snapshot.docs.map(d => d.data())
 			return result
 		})
 	}
 
-	public count = async (...where: QueryConstraint[]) => {
+	public count = async <Doc extends DocType = DocType>(
+		countOptions?: CountOptions<Doc>
+	) => {
 		return this.#wrap(async () => {
-			const q = query(this.ref, ...where)
+			const constrains = this.buildQueryConstrains({ where: countOptions })
+			const q = query(this.ref, ...constrains)
 			const res = await getCountFromServer(q)
 			return res.data().count
 		})
@@ -272,14 +351,26 @@ export class FirebormStore<
 		Model extends ModelType = ModelType
 	>({
 		onChange,
-		where
-	}: {
-		onChange: (data: Model[]) => any
-		where: QueryConstraint[]
-	}) =>
-		onSnapshot<Model, Doc>(query<Model, Doc>(this.ref as any, ...where), d =>
-			onChange(d.docs.map(x => x.data()))
+		...queryOptions
+	}: QueryOptions<Doc> & {
+		onChange: (update: {
+			last: QueryDocumentSnapshot<Model, Doc>
+			first: QueryDocumentSnapshot<Model, Doc>
+			data: Model[]
+		}) => any
+	}) => {
+		const constrains = this.buildQueryConstrains(queryOptions)
+		return onSnapshot<Model, Doc>(
+			query<Model, Doc>(this.ref as any, ...constrains),
+			d => {
+				const snapshots = d.docs
+				const last = snapshots[snapshots.length - 1]
+				const first = snapshots[0]
+				const data = snapshots.map(x => x.data())
+				return onChange({ last, first, data })
+			}
 		)
+	}
 
 	public toModel = defaultConverter.fromFirestore
 	public toDocument = defaultConverter.toFirestore
