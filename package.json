@@ -1,6 +1,6 @@
 {
   "name": "fireborm",
-  "version": "0.1.5",
+  "version": "0.2.0",
   "description": "A Firebase ORM-like wrapper, inspired by packages like sequelize and mongoose",
   "type": "module",
   "source": "src/index.ts",
@@ -41,11 +41,11 @@
   "homepage": "https://github.com/rgdevme/fireborm#readme",
   "devDependencies": {
     "bumpp": "^9.4.1",
-    "typescript": "^5.2.2",
+    "typescript": "5.4.2",
     "vite": "^4.4.9",
     "vite-plugin-dts": "^4.3.0"
   },
-  "peerDependencies": {
+  "dependencies": {
     "firebase": "^10.5.0"
   }
 }

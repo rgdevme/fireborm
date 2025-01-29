@@ -1,7 +1,9 @@
 .github
 examples
+node_modules
 src
-vite.config.ts
+.gitattributes
+.gitignore
 bump.config.ts
 tsconfig.json
-.gitattributes
+vite.config.ts

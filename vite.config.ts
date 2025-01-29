@@ -13,9 +13,7 @@ export default defineConfig({
 		outDir: 'dist',
 		emptyOutDir: false,
 		minify: false,
-		rollupOptions: {
-			external: [/firebase/]
-		}
+		rollupOptions: { external: /node_modules/ }
 	},
 	plugins: [
 		dts({
