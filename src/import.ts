@@ -1,21 +1,15 @@
-import { getApp } from 'firebase/app'
 import {
 	collection,
 	doc,
 	DocumentReference,
 	Firestore,
-	getFirestore,
 	writeBatch
 } from 'firebase/firestore'
 
 export class FirebormDataManager {
 	#firestore: Firestore
 
-	constructor(firestore?: Firestore) {
-		if (!firestore) {
-			const app = getApp()
-			firestore = getFirestore(app)
-		}
+	constructor(firestore: Firestore) {
 		this.#firestore = firestore
 	}
 

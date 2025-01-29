@@ -1,6 +1,6 @@
-import { getApp } from 'firebase/app'
 import {
 	addDoc,
+	and,
 	arrayRemove,
 	arrayUnion,
 	collection,
@@ -10,19 +10,26 @@ import {
 	doc,
 	DocumentData,
 	DocumentReference,
+	endAt,
+	endBefore,
 	FieldPath,
 	Firestore,
 	getCountFromServer,
 	getDoc,
 	getDocs,
-	getFirestore,
 	limit,
 	onSnapshot,
+	or,
 	orderBy,
 	OrderByDirection,
 	query,
-	QueryConstraint,
+	QueryCompositeFilterConstraint,
+	QueryDocumentSnapshot,
+	QueryFieldFilterConstraint,
+	QueryFilterConstraint,
+	QueryNonFilterConstraint,
 	setDoc,
+	startAfter,
 	startAt,
 	UpdateData,
 	updateDoc,
@@ -33,11 +40,34 @@ import {
 import { defaultConverter, FSConverter } from './converter'
 import { PickByType, PickOptionals } from './utilities'
 
-type Where<T> = [
-	keyof T extends string ? keyof T | FieldPath : FieldPath,
+export type Constrain<T = any> = [
+	T extends any
+		? string
+		: keyof T extends string
+		? keyof T | FieldPath
+		: FieldPath,
 	WhereFilterOp,
 	unknown
-][]
+]
+
+export type Where<T = any> = (
+	| { and: Constrain<T>[] }
+	| { or: Constrain<T>[] }
+)[]
+
+export type QueryOptions<T = any> = {
+	where?: Where<T>
+	order?: keyof T
+	direction?: OrderByDirection
+	limit?: number
+	pagination?: {
+		pointer: DocumentData | null
+		start: boolean
+		include: boolean
+	}
+}
+
+export type CountOptions<T = any> = NonNullable<QueryOptions<T>['where']>
 
 export type FirebormStoreParameters<
 	DocType extends DocumentData = DocumentData,
@@ -66,35 +96,26 @@ export class FirebormStore<
 	readonly singular: string
 	readonly defaultData: DefaultType
 	readonly deleteOnUndefined: (keyof DocType)[] = []
-	#ref?: CollectionReference<ModelType, DocType>
-
-	public init = (firestore?: Firestore) => {
-		if (!firestore) {
-			const app = getApp()
-			firestore = getFirestore(app)
-		}
-		if (this.#ref) throw new Error('Store has been initialized already')
-		this.#ref = collection(firestore, this.path).withConverter({
-			fromFirestore: this.toModel,
-			toFirestore: this.toDocument
-		}) as CollectionReference<ModelType, DocType>
-	}
+	#ref: CollectionReference<ModelType, DocType>
 
 	get ref() {
 		if (!this.#ref) throw new Error("Store hasn't been initialized")
 		return this.#ref
 	}
 
-	constructor({
-		path,
-		plural,
-		singular,
-		defaultData,
-		deleteOnUndefined,
-		toDocument,
-		toModel,
-		onError
-	}: FirebormStoreParameters<DocType, ModelType, CreateType, DefaultType>) {
+	constructor(
+		firestore: Firestore,
+		{
+			path,
+			plural,
+			singular,
+			defaultData,
+			deleteOnUndefined,
+			toDocument,
+			toModel,
+			onError
+		}: FirebormStoreParameters<DocType, ModelType, CreateType, DefaultType>
+	) {
 		this.path = path
 		this.plural = plural
 		this.singular = singular
@@ -103,6 +124,11 @@ export class FirebormStore<
 		if (onError) this.onError = onError
 		if (toModel) this.toModel = toModel
 		if (toDocument) this.toDocument = toDocument
+
+		this.#ref = collection(firestore, this.path).withConverter({
+			fromFirestore: this.toModel,
+			toFirestore: this.toDocument
+		})
 	}
 
 	onError: (error: Error) => void = console.error
@@ -114,47 +140,107 @@ export class FirebormStore<
 			throw error
 		}
 	}
-	public docRef = (id?: string) => {
+	public docRef = <
+		Doc extends DocType = DocType,
+		Model extends ModelType = ModelType
+	>(
+		id?: string
+	) => {
 		if (!this.ref) throw new Error("Collection ref isn't defined")
-		if (id) return doc(this.ref, id)
-		return doc(this.ref)
+		if (id) return doc<Model, Doc>(this.ref as any, id)
+		return doc<Model, Doc>(this.ref as any)
 	}
 
-	public find = (id: string) => {
+	public find = <
+		Doc extends DocType = DocType,
+		Model extends ModelType = ModelType
+	>(
+		id: string
+	) => {
 		return this.#wrap(async () => {
-			const document = await getDoc(this.docRef(id))
+			const document = await getDoc(this.docRef<Doc, Model>(id))
 			return document.data()
 		})
 	}
 
-	public query = async ({
-		where: wc = [],
-		offset,
-		limit: l,
-		order,
+	private buildQueryConstrains = <Doc extends DocType = DocType>({
+		where: filterConstrains = [],
+		limit: max = undefined,
+		pagination = undefined,
+		order = undefined,
 		direction = 'asc'
-	}: {
-		where?: Where<DocType>
-		offset?: number
-		order?: keyof DocType
-		direction?: OrderByDirection
-		limit?: number
-	}) => {
+	}: QueryOptions<Doc> = {}) => {
+		let compositeConstrains: QueryFilterConstraint
+		let isSingle = false
+		const unwrappedCompositeConstrains = filterConstrains.map(
+			(filterConstrain, _, a) => {
+				const key = 'and' in filterConstrain ? 'and' : 'or'
+				const isOr = key === 'or'
+				const qc: QueryFieldFilterConstraint[] = filterConstrain[key].map(
+					(constrain: Constrain<Doc>) => where(...constrain)
+				)
+
+				isSingle = a.length === 1 && qc.length === 1
+
+				if (isSingle) return qc[0]
+				else if (isOr) return or(...qc)
+				else return and(...qc)
+			}
+		)
+
+		if (isSingle) {
+			compositeConstrains = unwrappedCompositeConstrains[0]
+		} else {
+			compositeConstrains = and(...unwrappedCompositeConstrains)
+		}
+
+		const nonCompositecontrains: QueryNonFilterConstraint[] = []
+		if (order !== undefined) {
+			nonCompositecontrains.push(orderBy(order as string, direction))
+
+			if (pagination?.pointer) {
+				let method = pagination.start
+					? pagination.include
+						? startAt
+						: startAfter
+					: pagination.include
+					? endAt
+					: endBefore
+
+				nonCompositecontrains.push(method(pagination.pointer))
+			}
+		}
+		if (max !== undefined) {
+			nonCompositecontrains.push(limit(max))
+		}
+
+		return [compositeConstrains, ...nonCompositecontrains] as [
+			QueryCompositeFilterConstraint,
+			...[QueryNonFilterConstraint]
+		]
+	}
+
+	public query = async <
+		Doc extends DocType = DocType,
+		Model extends ModelType = ModelType
+	>(
+		queryOptions?: QueryOptions<Doc>
+	) => {
 		return this.#wrap(async () => {
-			const w: QueryConstraint[] = wc.map(c => where(...c))
-			if (order !== undefined) w.push(orderBy(order as string, direction))
-			if (offset !== undefined) w.push(startAt(offset))
-			if (l !== undefined) w.push(limit(l))
-			const q = query(this.ref, ...w)
-			const snapshot = await getDocs(q)
+			const constrains = this.buildQueryConstrains(queryOptions)
+			const q = query<Model, Doc>(this.ref as any, ...constrains)
+			const snapshot = await getDocs<Model, Doc>(q)
 			const result = snapshot.docs.map(d => d.data())
 			return result
 		})
 	}
 
-	public count = async (...where: QueryConstraint[]) => {
+	public count = async <Doc extends DocType = DocType>(
+		countOptions?: CountOptions<Doc>
+	) => {
 		return this.#wrap(async () => {
-			const q = query(this.ref, ...where)
+			const constrains = this.buildQueryConstrains({ where: countOptions })
+			const q = query(this.ref, ...constrains)
 			const res = await getCountFromServer(q)
 			return res.data().count
 		})
@@ -167,7 +253,13 @@ export class FirebormStore<
 		})
 	}
 
-	public save = async (id: string, data: UpdateData<ModelType>) => {
+	public save = async <
+		Doc extends DocType = DocType,
+		Model extends ModelType = ModelType
+	>(
+		id: string,
+		data: UpdateData<Model>
+	) => {
 		const upd = {} as typeof data
 
 		for (const key in data) {
@@ -181,68 +273,104 @@ export class FirebormStore<
 			}
 		}
 
-		return this.#wrap(setDoc(this.docRef(id), upd, { merge: true }))
+		return this.#wrap(
+			setDoc(this.docRef<Doc, Model>(id), upd, {
+				merge: true
+			})
+		)
 	}
 
-	public relate = async (
+	public relate = async <
+		Doc extends DocType = DocType,
+		Model extends ModelType = ModelType
+	>(
 		id: string,
 		ref: DocumentReference,
-		property: keyof PickByType<
-			ModelType,
-			DocumentReference[] | DocumentReference
-		>
+		property: keyof PickByType<Model, DocumentReference[] | DocumentReference>
 	) => {
 		return this.#wrap(
 			updateDoc(this.docRef(id), {
 				[property]: arrayUnion(ref)
-			} as UpdateData<DocType>)
+			} as UpdateData<Doc>)
 		)
 	}
 
-	public unrelate = async (
+	public unrelate = async <
+		Doc extends DocType = DocType,
+		Model extends ModelType = ModelType
+	>(
 		id: string,
 		ref: DocumentReference,
-		property: keyof PickByType<
-			ModelType,
-			DocumentReference[] | DocumentReference
-		>
+		property: keyof PickByType<Model, DocumentReference[] | DocumentReference>
 	) => {
 		return this.#wrap(
 			updateDoc(this.docRef(id), {
 				[property]: arrayRemove(ref)
-			} as UpdateData<DocType>)
+			} as UpdateData<Doc>)
 		)
 	}
 
-	public create = (data: WithFieldValue<CreateType & { id?: string }>) => {
+	public create = <
+		Doc extends DocType = DocType,
+		Model extends ModelType = ModelType,
+		Create extends CreateType = CreateType
+	>(
+		data: WithFieldValue<Create & { id?: string }>
+	) => {
 		return this.#wrap(async () => {
-			const upd = { ...this.defaultData, ...data } as ModelType
+			const upd = { ...this.defaultData, ...data } as Model
 			if (data.id === undefined) return addDoc(this.ref, upd)
-			const newdocref = this.docRef(data.id as string)
+			const newdocref = this.docRef<Doc, Model>(data.id as string)
 			await setDoc(newdocref, upd)
 			return newdocref
 		})
 	}
 
-	public destroy = async (id: string) => {
-		return this.#wrap(deleteDoc(this.docRef(id)))
+	public destroy = async <
+		Doc extends DocType = DocType,
+		Model extends ModelType = ModelType
+	>(
+		id: string
+	) => {
+		return this.#wrap(deleteDoc(this.docRef<Doc, Model>(id)))
 	}
 
-	public subscribe = (
+	public subscribe = <
+		Doc extends DocType = DocType,
+		Model extends ModelType = ModelType
+	>(
 		id: string,
-		{ onChange }: { onChange: (data?: ModelType) => any }
-	) => onSnapshot(doc(this.ref, id), d => onChange(d.data()))
-
-	public subscribeMany = ({
-		onChange,
-		where
-	}: {
-		onChange: (data: ModelType[]) => any
-		where: QueryConstraint[]
-	}) =>
-		onSnapshot(query(this.ref, ...where), d =>
-			onChange(d.docs.map(x => x.data()))
+		{ onChange }: { onChange: (data?: Model) => any }
+	) =>
+		onSnapshot<Model, Doc>(doc<Model, Doc>(this.ref as any, id), d =>
+			onChange(d.data())
 		)
+
+	public subscribeMany = <
+		Doc extends DocType = DocType,
+		Model extends ModelType = ModelType
+	>({
+		onChange,
+		...queryOptions
+	}: QueryOptions<Doc> & {
+		onChange: (update: {
+			last: QueryDocumentSnapshot<Model, Doc>
+			first: QueryDocumentSnapshot<Model, Doc>
+			data: Model[]
+		}) => any
+	}) => {
+		const constrains = this.buildQueryConstrains(queryOptions)
+		return onSnapshot<Model, Doc>(
+			query<Model, Doc>(this.ref as any, ...constrains),
+			d => {
+				const snapshots = d.docs
+				const last = snapshots[snapshots.length - 1]
+				const first = snapshots[0]
+				const data = snapshots.map(x => x.data())
+				return onChange({ last, first, data })
+			}
+		)
+	}
 
 	public toModel = defaultConverter.fromFirestore
 	public toDocument = defaultConverter.toFirestore
