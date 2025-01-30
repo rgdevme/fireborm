@@ -1,16 +1,15 @@
 import { FirebaseApp, FirebaseOptions, initializeApp } from 'firebase/app'
-import { connectAuthEmulator, getAuth } from 'firebase/auth'
 import {
-	connectFirestoreEmulator,
 	DocumentData,
 	FirestoreSettings,
 	getFirestore,
 	initializeFirestore
 } from 'firebase/firestore'
-import { connectFunctionsEmulator, getFunctions } from 'firebase/functions'
-import { connectStorageEmulator, getStorage } from 'firebase/storage'
+import { getFunctions } from 'firebase/functions'
+import { getStorage } from 'firebase/storage'
 import { FirebormCallables, FirebormCalls } from './callable'
 import { FirebormDataManager } from './import'
+import { EmulatorsPorts, runEmulators } from './lib/emulators'
 import { FirebormStorage } from './storage'
 import { FirebormStore, FirebormStoreParameters } from './store'
 
@@ -24,15 +23,9 @@ export * from './utilities'
 const INSTANCE = Symbol('instance')
 
 export interface FirebormSettings {
-	emulate?:
-		| true
-		| {
-				host?: string
-				firestore?: number
-				storage?: number
-				auth?: number
-				functions?: number
-		  }
+	emulate?: EmulatorsPorts & {
+		host?: string
+	}
 	firestore?: FirestoreSettings
 }
 
@@ -62,28 +55,9 @@ export class Fireborm {
 			initializeFirestore(this.app, settings.firestore || {})
 		}
 
-		if (!!settings?.emulate) {
-			let host = '127.0.0.1'
-			const port = {
-				auth: 9199,
-				firestore: 9099,
-				functions: 5001,
-				storage: 8080
-			}
-
-			if (typeof settings.emulate === 'object') {
-				const opts = settings.emulate
-				if (opts.host) host = opts.host
-				if (opts.auth) port.auth = opts.auth
-				if (opts.firestore) port.firestore = opts.firestore
-				if (opts.functions) port.functions = opts.functions
-				if (opts.storage) port.storage = opts.storage
-			}
-
-			connectAuthEmulator(getAuth(this.app), `http://${host}:${port.auth}`)
-			connectFirestoreEmulator(getFirestore(this.app), host, port.firestore)
-			connectFunctionsEmulator(getFunctions(this.app), host, port.functions)
-			connectStorageEmulator(getStorage(this.app), host, port.storage)
+		if (settings?.emulate) {
+			const { host, ...ports } = settings.emulate
+			runEmulators(this.app, host, ports)
 		}
 
 		if (!Fireborm[INSTANCE]) Fireborm[INSTANCE] = this
