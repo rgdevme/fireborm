@@ -3,24 +3,15 @@ import { connectAuthEmulator, getAuth } from 'firebase/auth'
 import { connectFirestoreEmulator, getFirestore } from 'firebase/firestore'
 import { connectFunctionsEmulator, getFunctions } from 'firebase/functions'
 import { connectStorageEmulator, getStorage } from 'firebase/storage'
+import { defaultEmulationPorts } from '../defaults'
+import { EmulatorConfig } from '../types'
 
-export type EmulatorsPorts = {
-	auth?: number | false
-	firestore?: number | false
-	functions?: number | false
-	storage?: number | false
-}
-
-export const runEmulators = (
-	app: FirebaseApp,
-	host = 'localhost',
-	{
-		auth = 9099,
-		firestore = 8080,
-		functions = 5001,
-		storage = 9199
-	}: EmulatorsPorts
-) => {
+/** Run the emulators with the provided options */
+export const runEmulators = (app: FirebaseApp, options: EmulatorConfig) => {
+	const { auth, firestore, functions, host, storage } = Object.assign(
+		options,
+		defaultEmulationPorts
+	)
 	if (auth !== false) {
 		connectAuthEmulator(getAuth(app), `http://${host}:${auth}`)
 	}

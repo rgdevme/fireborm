@@ -1,7 +1,6 @@
 import { FirebaseApp, FirebaseOptions, initializeApp } from 'firebase/app'
 import {
 	DocumentData,
-	FirestoreSettings,
 	getFirestore,
 	initializeFirestore
 } from 'firebase/firestore'
@@ -9,56 +8,50 @@ import { getFunctions } from 'firebase/functions'
 import { getStorage } from 'firebase/storage'
 import { FirebormCallables, FirebormCalls } from './callable'
 import { FirebormDataManager } from './import'
-import { EmulatorsPorts, runEmulators } from './lib/emulators'
 import { FirebormStorage } from './storage'
 import { FirebormStore, FirebormStoreParameters } from './store'
+import { FirebormSettings } from './types'
+import { runEmulators } from './utils/emulators'
 
 export * from './callable'
-export * from './converter'
+export * from './defaults/converter'
 export * from './import'
 export * from './storage'
 export * from './store'
 export * from './utilities'
 
-const INSTANCE = Symbol('instance')
-
-export interface FirebormSettings {
-	emulate?: EmulatorsPorts & {
-		host?: string
-	}
-	firestore?: FirestoreSettings
-}
+const INSTANCE = Symbol('FIREBORM')
 
 /**
- * Initializes a single Fireborm instance that exposes intance creation methods.
- * This function intializes the firebase app, so there's no need to initialize it beforehand.
+ * Initialize a `@firebase/app#FirebaseApp`, and instantiate Fireborm exposing the following methods:
  *
- * If __settings.firestore__ is provided, it'll initialize firebase with those settings.
+ * - createStore: manage a collection.
+ * - createStorage: manage a storage.
+ * - createDataManager: manage data migration.
+ * - createCallables: manage function calls with type safety.
  *
- * If __settings.emulate__ is provided, it'll try to connect to the emulators,
- * so be sure to run "firebase emulators:start" in your cli.
+ * Use the __settings__ parameter to configure firestore and the emulators.
  */
 export class Fireborm {
+	/** Options to create and initialize a `@firebase/app#FirebaseApp` instance. */
 	config: FirebaseOptions
+	/** `@firebase/app#FirebaseApp` instance. */
 	app: FirebaseApp
 
 	/**
-	 *
-	 * @param config Options object for firebase/app initializeApp
-	 * @param settings Settings for emulators and firestore
+	 * @param config Options to create and initialize a `@firebase/app#FirebaseApp` instance.
+	 * @param settings Interface for configuring the Fireborm client, including settings for an emulator and Firestore.
 	 * @returns Single Fireborm instance
 	 */
-	constructor(config: FirebaseOptions, settings?: FirebormSettings) {
+	constructor(
+		config: FirebaseOptions,
+		{ firestore = {}, emulator }: FirebormSettings = {}
+	) {
 		this.config = config
 		this.app = initializeApp(config)
-		if (settings?.firestore) {
-			initializeFirestore(this.app, settings.firestore || {})
-		}
+		initializeFirestore(this.app, firestore)
 
-		if (settings?.emulate) {
-			const { host, ...ports } = settings.emulate
-			runEmulators(this.app, host, ports)
-		}
+		if (emulator) runEmulators(this.app, emulator)
 
 		if (!Fireborm[INSTANCE]) Fireborm[INSTANCE] = this
 		return Fireborm[INSTANCE]

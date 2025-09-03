@@ -37,7 +37,8 @@ import {
 	WhereFilterOp,
 	WithFieldValue
 } from 'firebase/firestore'
-import { defaultConverter, FSConverter } from './converter'
+import { defaultConverter } from './defaults'
+import { FSConverter } from './types'
 import { PickByType, PickOptionals } from './utilities'
 
 export type Constrain<T = any> = [
@@ -85,6 +86,12 @@ export type FirebormStoreParameters<
 	toDocument?: FSConverter<DocType, ModelType>['toFirestore']
 }
 
+/**
+ * __Firestore Collection manager__
+ *
+ * Provides methods to handle a collection's crud operations, relations,
+ * subscriptions, and data conversion.
+ */
 export class FirebormStore<
 	DocType extends DocumentData = DocumentData,
 	ModelType extends object = DocType,
@@ -373,5 +380,7 @@ export class FirebormStore<
 	}
 
 	public toModel = defaultConverter.fromFirestore
+
+	/** Conve */
 	public toDocument = defaultConverter.toFirestore
 }
