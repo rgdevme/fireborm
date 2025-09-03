@@ -41,14 +41,14 @@
   },
   "homepage": "https://github.com/rgdevme/fireborm#readme",
   "devDependencies": {
-    "bumpp": "^9.4.1",
-    "typedoc": "^0.27.6",
-    "typedoc-plugin-markdown": "^4.4.1",
-    "typescript": "5.4.2",
-    "vite": "^4.4.9",
-    "vite-plugin-dts": "^4.3.0"
+    "bumpp": "^10.2.3",
+    "typedoc": "^0.28.12",
+    "typedoc-plugin-markdown": "^4.8.1",
+    "typescript": "5.9.2",
+    "vite": "^7.1.4",
+    "vite-plugin-dts": "^4.5.4"
   },
   "dependencies": {
-    "firebase": "^10.5.0"
+    "firebase": "^12.2.1"
   }
 }
