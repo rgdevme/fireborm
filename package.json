@@ -17,7 +17,8 @@
   "scripts": {
     "build": "vite build",
     "watch": "vite build -w",
-    "bump": "npx bumpp"
+    "bump": "npx bumpp",
+    "doc": "npx typedoc"
   },
   "engines": {
     "node": ">=20"
@@ -41,6 +42,8 @@
   "homepage": "https://github.com/rgdevme/fireborm#readme",
   "devDependencies": {
     "bumpp": "^9.4.1",
+    "typedoc": "^0.27.6",
+    "typedoc-plugin-markdown": "^4.4.1",
     "typescript": "5.4.2",
     "vite": "^4.4.9",
     "vite-plugin-dts": "^4.3.0"
