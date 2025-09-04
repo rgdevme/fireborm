@@ -3,6 +3,7 @@ import { EmulatorConfig } from './emulators'
 
 export * from './emulators'
 export * from './converter'
+export * from './model'
 
 /**
  * Interface for configuring the Fireborm client, including settings for

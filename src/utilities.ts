@@ -1,5 +1,3 @@
-import { DocumentData, DocumentReference } from 'firebase/firestore'
-
 /** Modifies the properties of the first type,
  * overwriting them with the properties of the second type second object
  **/
@@ -16,12 +14,6 @@ export type Optional<Base, K extends keyof Base> = Pick<Partial<Base>, K> &
 /** Make only some properties not optional */
 export type Prioritize<T, K extends keyof T> = Required<Pick<T, K>> &
 	Partial<Omit<T, K>>
-
-export type WithID<T> = T & { id: string }
-
-export type WithRef<T, Ref extends DocumentReference> = T & {
-	_ref: Ref
-}
 
 /** Return keys that match type */
 export type PickByType<T extends Record<string, any>, V> = {
@@ -55,19 +47,3 @@ export type NullOptionals<T extends Record<string, any>> = {
 export type NullByKey<T extends Record<string, any>, X extends keyof T> = {
 	[K in keyof T]: K extends X ? T[K] | null : T[K]
 }
-
-export type ConvertedModel<
-	D extends DocumentData,
-	M extends D | DocumentData = {}
-> = Modify<
-	D,
-	M & {
-		id: string
-		_ref: DocumentReference<ThisType<ConvertedModel<D, M>>, D>
-	}
->
-
-export type DefaultModel<M extends Object> = Omit<
-	M,
-	keyof PickOptionals<M> | 'id' | '_ref'
->

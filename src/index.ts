@@ -19,6 +19,7 @@ export * from './import'
 export * from './storage'
 export * from './store'
 export * from './utilities'
+export * from './types'
 
 const INSTANCE = Symbol('FIREBORM')
 
