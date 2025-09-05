@@ -42,11 +42,11 @@ import { FSConverter } from './types'
 import { PickByType, PickOptionals } from './utilities'
 
 export type Constrain<T = any> = [
-	T extends any
-		? string
-		: keyof T extends string
-		? keyof T | FieldPath
-		: FieldPath,
+	T extends Object
+		? keyof T extends string
+			? keyof T | FieldPath
+			: FieldPath
+		: string,
 	WhereFilterOp,
 	unknown
 ]
