@@ -9,8 +9,8 @@ import { EmulatorConfig } from '../types'
 /** Run the emulators with the provided options */
 export const runEmulators = (app: FirebaseApp, options: EmulatorConfig) => {
 	const { auth, firestore, functions, host, storage } = Object.assign(
-		options,
-		defaultEmulationPorts
+		defaultEmulationPorts,
+		options
 	)
 	if (auth !== false) {
 		connectAuthEmulator(getAuth(app), `http://${host}:${auth}`)
